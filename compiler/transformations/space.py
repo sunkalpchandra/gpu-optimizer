@@ -177,6 +177,10 @@ class Candidate:
     config: Config = field(default_factory=dict)
     parent_id: str | None = None    # search-tree lineage
     provenance: str = "manual"      # random | grid | evolutionary | bo | rl | manual
+    # Optional surrogate predictions attached by model-based searchers; not
+    # part of the identity hash.
+    predicted_ms: float | None = None
+    predicted_std: float | None = None
 
     @property
     def candidate_id(self) -> str:
