@@ -21,9 +21,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import HTTPException  # noqa: E402
+from fastapi import HTTPException
 
-from server.api import main as api  # noqa: E402
+from server.api import main as api
 
 
 def dump(path: Path, obj: object) -> None:

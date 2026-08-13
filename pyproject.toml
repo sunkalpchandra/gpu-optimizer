@@ -46,3 +46,4 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "compiler/triton/kernels.py" = ["F821"]  # tl.constexpr names resolve at Triton JIT time
+"scripts/*" = ["E402"]  # standalone scripts import after the sys.path bootstrap
