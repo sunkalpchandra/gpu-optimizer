@@ -14,26 +14,46 @@ that continues development. Keep it honest: check items only when implemented **
 
 ## Stages
 
-- [ ] **Stage 1 — Benchmarking core**: hardware detection, Triton kernels (matmul, vecadd,
+- [x] **Stage 1 — Benchmarking core**: hardware detection, Triton kernels (matmul, vecadd,
       reduction, softmax, layernorm, fused elementwise, attention), reference implementations,
       dtype-aware correctness checks, benchmark harness (warmup, CUDA sync, percentiles),
-      SQLite persistence, simulated engine for non-CUDA dev.
-- [ ] **Stage 2 — Parameter search**: structured candidate space, kernel → compile →
-      benchmark → score pipeline, random + grid search baselines.
-- [ ] **Stage 3 — Evolutionary optimizer**: tournament selection, mutation, crossover, elitism.
-- [ ] **Stage 4 — Performance model**: neural surrogate (runtime / memory / compile-prob +
-      uncertainty via deep ensemble), trained from the benchmark DB; UCB/Thompson acquisition.
-- [ ] **Stage 5 — RL policy**: PPO over the structured transformation space; program graph
-      encoder + hardware encoder + transformer policy with discrete+continuous heads.
-- [ ] **Stage 6 — Hybrid optimizer**: RL proposals + surrogate ranking + evolutionary
-      population + real benchmarking, as the flagship search mode.
-- [ ] **Stage 7 — Generalization experiments**: shape interpolation/extrapolation, workload
-      transfer, (hardware transfer where multiple GPUs exist), with honest reports.
-- [ ] **Stage 8 — Dashboard**: FastAPI backend + React/TS/Tailwind frontend (overview, live
-      run view, search tree, kernel viewer, performance graph, GPU metrics).
-- [ ] **Finalization**: `optimize.py` demo CLI, full README with Mermaid diagrams,
-      integration test pass.
+      SQLite persistence, simulated engine + CPU algorithm emulation for non-CUDA dev.
+- [x] **Stage 2 — Parameter search**: structured candidate space, kernel → compile →
+      benchmark → score loop, random + grid baselines, YAML experiment configs.
+- [x] **Stage 3 — Evolutionary optimizer**: tournament selection, uniform crossover,
+      step/reset mutation, immigrants, elitism-by-pool.
+- [x] **Stage 4 — Performance model**: deep-ensemble surrogate (log-runtime / log-memory /
+      compile-prob + epistemic uncertainty) over graph+hardware+config encoders;
+      UCB and Thompson acquisition (`bayesian` searcher).
+- [x] **Stage 5 — RL policy**: PPO/GAE over the structured transformation catalog;
+      transformer actor-critic with masked discrete head + Gaussian continuous head;
+      online transformation episodes trained during search.
+- [x] **Stage 6 — Hybrid optimizer**: reserved RL episode budget + surrogate-UCB-ranked
+      GA/immigrant pool; all learners share every real measurement.
+- [x] **Stage 7 — Generalization experiments**: shape interpolation/extrapolation, workload
+      transfer, hardware transfer (top-K protocol), search-efficiency comparison;
+      honest simulated-labeled reports in `reports/`.
+- [x] **Stage 8 — Dashboard**: FastAPI backend (live-pollable runs, search tree, kernel
+      source, GPU catalog, background optimize) + React/TS/Tailwind frontend (overview,
+      live run view, SVG search tree, kernel viewer, GPU metrics, reports) — `npm run build`
+      clean, served from `frontend/dist` by the API server.
+- [x] **Finalization**: `optimize.py` demo CLI, full README with Mermaid diagrams,
+      integration test pass (71 passed, 14 GPU-gated skips on non-CUDA machines).
 
 ## Open follow-ups
 
-(none yet)
+- [ ] **Real-GPU validation pass**: run `tests/test_triton_gpu.py` and a full
+      `optimize.py --task matmul --size 4096` on a CUDA machine; fix any Triton API
+      mismatches (kernels were written for Triton ≥2.1 but have never executed on hardware);
+      record real example results in README (replacing/alongside simulated tables).
+- [ ] Surrogate warm-start: let `optimize.py`/`SearchLoop` load a saved
+      `PerformanceModel` checkpoint trained from the accumulated results DB
+      (`PerformanceModel.save/load` exist; wire a `--surrogate` flag + training script).
+- [ ] PPO policy persistence across runs (save/load exists on `PPOTrainer`; add
+      per-task checkpoint reuse so later searches start warm).
+- [ ] Frontend: code-split the 660 kB bundle (dynamic import recharts-heavy pages);
+      add websocket push instead of 1.5 s polling.
+- [ ] CUDA C backend: extend `compiler/cuda/` beyond source rendering (e.g.
+      `torch.utils.cpp_extension.load_inline` path for vecadd/reduction) on GPU machines.
+- [ ] Multi-shape joint runs: one search that optimizes several shapes per task with
+      shared surrogate/policy (infrastructure supports it; needs an orchestrator).

@@ -169,7 +169,7 @@ class SearchLoop:
                         actual_ms=result.latency.median_ms if result.ok else None,
                         reward=reward, best_so_far_ms=best_ms, status=result.status,
                         predicted_ms=cand.predicted_ms,
-                        predicted_std=cand.predicted_std)
+                        predicted_std=cand.predicted_std, note=cand.provenance)
             if observations:
                 self.searcher.observe(observations)
 
