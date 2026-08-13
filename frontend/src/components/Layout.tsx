@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { api } from "../api";
+import { api, apiMode } from "../api";
 import { useFetch } from "./hooks";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
 
 export default function Layout() {
   const { data: status } = useFetch(() => api.status(), []);
+  const { data: mode } = useFetch(() => apiMode(), []);
 
   return (
     <div className="flex min-h-screen">
@@ -53,6 +54,21 @@ export default function Layout() {
         </div>
       </aside>
       <main className="ml-52 flex-1 p-6">
+        {mode === "static" && (
+          <div className="mb-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm text-cyan-200">
+            Static demo snapshot (no backend) — recorded data from simulated runs. Clone{" "}
+            <a
+              className="underline"
+              href="https://github.com/sunkalpchandra/gpu-optimizer"
+              target="_blank"
+              rel="noreferrer"
+            >
+              the repo
+            </a>{" "}
+            and run <code className="font-mono text-xs">uvicorn server.api.main:app</code> for
+            live searches.
+          </div>
+        )}
         {status?.simulated_data_present && (
           <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
             ⚠ Simulated engine data present — numbers labeled{" "}

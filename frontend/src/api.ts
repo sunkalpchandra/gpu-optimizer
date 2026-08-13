@@ -169,26 +169,72 @@ export interface OptimizeRequest {
   iterations: number;
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+// ------------------------------------------------------------- data source
+//
+// The dashboard runs against either the live FastAPI backend or, when no
+// backend answers (e.g. the GitHub Pages deployment), a recorded snapshot of
+// demo data shipped as static JSON under `demo/` (see
+// scripts/export_demo_snapshot.py).  The snapshot is read-only: starting new
+// optimizations requires the live backend.
+
+export type ApiMode = "live" | "static";
+
+let modePromise: Promise<ApiMode> | null = null;
+
+export function apiMode(): Promise<ApiMode> {
+  modePromise ??= (async () => {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2500);
+      const res = await fetch("api/status", { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (res.ok) return "live";
+    } catch {
+      // fall through to static
+    }
+    return "static";
+  })();
+  return modePromise;
+}
+
+const demoUrl = (name: string) => `${import.meta.env.BASE_URL}demo/${name}.json`;
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
 
+async function get<T>(livePath: string, demoName: string): Promise<T> {
+  const mode = await apiMode();
+  return fetchJson<T>(mode === "live" ? livePath : demoUrl(demoName));
+}
+
 export const api = {
-  status: () => get<Status>("/api/status"),
-  tasks: () => get<TaskInfo[]>("/api/tasks"),
-  algorithms: () => get<string[]>("/api/algorithms"),
-  gpu: () => get<GpuInfo>("/api/gpu"),
-  runs: () => get<Run[]>("/api/runs"),
-  run: (id: string) => get<Run>(`/api/runs/${id}`),
-  iterations: (id: string, after = 0) =>
-    get<Iteration[]>(`/api/runs/${id}/iterations?after=${after}`),
-  tree: (id: string) => get<Tree>(`/api/runs/${id}/tree`),
+  status: () => get<Status>("/api/status", "status"),
+  tasks: () => get<TaskInfo[]>("/api/tasks", "tasks"),
+  algorithms: () => get<string[]>("/api/algorithms", "algorithms"),
+  gpu: () => get<GpuInfo>("/api/gpu", "gpu"),
+  runs: () => get<Run[]>("/api/runs", "runs"),
+  run: (id: string) => get<Run>(`/api/runs/${id}`, `run-${id}`),
+  iterations: async (id: string, after = 0): Promise<Iteration[]> => {
+    if ((await apiMode()) === "live") {
+      return fetchJson(`/api/runs/${id}/iterations?after=${after}`);
+    }
+    const all = await fetchJson<Iteration[]>(demoUrl(`run-${id}-iterations`));
+    return all.filter((it) => it.iteration > after);
+  },
+  tree: (id: string) => get<Tree>(`/api/runs/${id}/tree`, `run-${id}-tree`),
   source: (candidateId: string) =>
-    get<KernelSource>(`/api/candidates/${candidateId}/source`),
-  reports: () => get<Report[]>("/api/reports"),
+    get<KernelSource>(`/api/candidates/${candidateId}/source`, `candidate-${candidateId}`),
+  reports: () => get<Report[]>("/api/reports", "reports"),
   optimize: async (req: OptimizeRequest): Promise<{ run_id: string }> => {
+    if ((await apiMode()) === "static") {
+      throw new Error(
+        "This is the static demo snapshot — clone the repo and run " +
+          "`uvicorn server.api.main:app` to launch live searches.",
+      );
+    }
     const res = await fetch("/api/optimize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

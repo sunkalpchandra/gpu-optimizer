@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, fmtCount, fmtMs, fmtPct, fmtSpeedup, Run, TaskInfo } from "../api";
+import { api, apiMode, fmtCount, fmtMs, fmtPct, fmtSpeedup, Run, TaskInfo } from "../api";
 import { useFetch, usePoll } from "../components/hooks";
 import {
   Empty,
@@ -21,6 +21,8 @@ function NewRunForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
   const [engine, setEngine] = useState<"auto" | "cuda" | "simulated">("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: mode } = useFetch(() => apiMode(), []);
+  const readOnly = mode === "static";
 
   const taskInfo = tasks.find((t) => t.name === task);
   useEffect(() => {
@@ -110,9 +112,14 @@ function NewRunForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
         </label>
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <button className="btn" disabled={busy}>
+        <button className="btn" disabled={busy || readOnly}>
           {busy ? "Starting…" : "Start search"}
         </button>
+        {readOnly && (
+          <span className="text-xs text-slate-500">
+            unavailable in the static demo — run the backend locally to launch searches
+          </span>
+        )}
         {error && <span className="text-xs text-red-400">{error}</span>}
       </div>
     </form>
