@@ -1,0 +1,30 @@
+# Flagship: hybrid search (PPO + evolutionary population + surrogate UCB).
+task: matmul
+shapes:
+  - [2048, 2048, 2048]
+  - [4096, 4096, 4096]
+algorithm: hybrid
+seed: 0
+engine: auto
+gpu: A100-SXM4-40GB
+max_evaluations: 300
+batch_size: 10
+benchmark:
+  warmup: 20
+  iterations: 100
+search:
+  population_size: 32
+  rl_frac: 0.3
+  beta: 1.0
+  warm_start: 24
+  retrain_every: 24
+  pool_multiplier: 6
+rl:
+  learning_rate: 0.0003
+  gamma: 0.99
+  horizon: 96
+  minibatch_size: 32
+reward:
+  mode: log_speedup
+  correctness_penalty: 1.0
+  compile_penalty: 0.5
