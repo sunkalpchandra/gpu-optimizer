@@ -40,20 +40,27 @@ that continues development. Keep it honest: check items only when implemented **
 - [x] **Finalization**: `optimize.py` demo CLI, full README with Mermaid diagrams,
       integration test pass (71 passed, 14 GPU-gated skips on non-CUDA machines).
 
+## Done since v0.1
+
+- [x] Lint policy (ruff E/F/W/I/UP/B/RUF) enforced in CI; full-codebase cleanup.
+- [x] Surrogate warm-start: checkpoints persist weights **and** training corpus;
+      `--warm`/`--surrogate` flags; `scripts/train_surrogate.py` with held-out gating.
+- [x] PPO policy persistence via `Searcher.finalize()`; `--warm`/`--policy` flags.
+- [x] Dashboard code splitting (660 kB → 220 kB main chunk) + static demo mode;
+      deployed to GitHub Pages from a recorded snapshot with honest banners:
+      https://sunkalpchandra.github.io/gpu-optimizer/
+- [x] CI (ruff + pytest + frontend build) and Pages deploy workflows.
+
 ## Open follow-ups
 
 - [ ] **Real-GPU validation pass**: run `tests/test_triton_gpu.py` and a full
       `optimize.py --task matmul --size 4096` on a CUDA machine; fix any Triton API
       mismatches (kernels were written for Triton ≥2.1 but have never executed on hardware);
       record real example results in README (replacing/alongside simulated tables).
-- [ ] Surrogate warm-start: let `optimize.py`/`SearchLoop` load a saved
-      `PerformanceModel` checkpoint trained from the accumulated results DB
-      (`PerformanceModel.save/load` exist; wire a `--surrogate` flag + training script).
-- [ ] PPO policy persistence across runs (save/load exists on `PPOTrainer`; add
-      per-task checkpoint reuse so later searches start warm).
-- [ ] Frontend: code-split the 660 kB bundle (dynamic import recharts-heavy pages);
-      add websocket push instead of 1.5 s polling.
+- [ ] Websocket push for the live run view instead of 1.5 s polling.
 - [ ] CUDA C backend: extend `compiler/cuda/` beyond source rendering (e.g.
       `torch.utils.cpp_extension.load_inline` path for vecadd/reduction) on GPU machines.
 - [ ] Multi-shape joint runs: one search that optimizes several shapes per task with
       shared surrogate/policy (infrastructure supports it; needs an orchestrator).
+- [ ] Refresh the Pages demo snapshot (`scripts/export_demo_snapshot.py`) whenever
+      richer runs (especially real-GPU ones) land in the results DB.

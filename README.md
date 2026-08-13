@@ -1,5 +1,8 @@
 # gpu-optimizer
 
+[![CI](https://github.com/sunkalpchandra/gpu-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/sunkalpchandra/gpu-optimizer/actions/workflows/ci.yml)
+[![Dashboard demo](https://img.shields.io/badge/dashboard-live%20demo-10b981)](https://sunkalpchandra.github.io/gpu-optimizer/)
+
 **An autonomous GPU kernel optimization agent.** Given a tensor program
 (matmul, softmax, attention, …), it searches the space of real Triton kernel
 implementations — tiling, warp/stage configuration, memory strategy, fusion,
@@ -171,6 +174,13 @@ python optimize.py --task attention --size 2048 --algorithm hybrid --budget 300
 python optimize.py --task reduction --size 16777216 --algorithm evolutionary
 python optimize.py --task softmax --size 2048 --show-source
 
+# warm starts: successive runs reuse per-task surrogate + policy checkpoints
+python optimize.py --task matmul --size 4096 --warm
+
+# train a surrogate checkpoint from the accumulated results DB
+# (refuses to save one whose held-out ranking is weak)
+python scripts/train_surrogate.py --out checkpoints/surrogate.pt
+
 # reproducible experiments from YAML
 python scripts/run_search.py configs/matmul_hybrid.yaml
 
@@ -208,6 +218,10 @@ should be reported from real runs only. No claim is made here of beating
 cuBLAS/FlashAttention on hardware.
 
 ## Dashboard
+
+**Live demo: <https://sunkalpchandra.github.io/gpu-optimizer/>** — a static
+snapshot of recorded (simulated-engine) runs deployed to GitHub Pages; the UI
+says so up front, and launching new searches needs the local backend:
 
 ```bash
 uvicorn server.api.main:app --port 8000     # backend (serves frontend/dist if built)
