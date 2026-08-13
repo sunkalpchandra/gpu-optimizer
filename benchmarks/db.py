@@ -138,11 +138,13 @@ class BenchmarkDB:
 
     def fetch_results(self, task: str | None = None, engine: str | None = None,
                       run_id: str | None = None, status: str | None = None,
+                      candidate_id: str | None = None,
                       limit: int | None = None) -> list[dict[str, Any]]:
         q = "SELECT * FROM results WHERE 1=1"
         args: list[Any] = []
         for col, val in (("task", task), ("engine", engine),
-                         ("run_id", run_id), ("status", status)):
+                         ("run_id", run_id), ("status", status),
+                         ("candidate_id", candidate_id)):
             if val is not None:
                 q += f" AND {col} = ?"
                 args.append(val)

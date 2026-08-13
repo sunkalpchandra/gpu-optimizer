@@ -1,0 +1,88 @@
+{
+  "engine_label": "simulated",
+  "gpu": "NVIDIA A100-SXM4-40GB (simulated)",
+  "seed": 0,
+  "started_at": 1786599384.013773,
+  "interpolation": {
+    "matmul(768, 768, 768)": {
+      "n": 39,
+      "spearman": 0.864,
+      "top1_regret_pct": 37.69
+    },
+    "matmul(1536, 1536, 1536)": {
+      "n": 38,
+      "spearman": 0.8974,
+      "top1_regret_pct": 17.71
+    }
+  },
+  "extrapolation": {
+    "matmul(3072, 3072, 3072)": {
+      "n": 38,
+      "spearman": 0.877,
+      "top1_regret_pct": 25.41
+    },
+    "matmul(4096, 4096, 4096)": {
+      "n": 39,
+      "spearman": 0.8826,
+      "top1_regret_pct": 16.09
+    }
+  },
+  "workload_transfer": {
+    "softmax(4096, 1024)": {
+      "n": 40,
+      "spearman": 0.1846,
+      "top1_regret_pct": 247.53
+    },
+    "layernorm(4096, 1024)": {
+      "n": 40,
+      "spearman": 0.351,
+      "top1_regret_pct": 226.67
+    },
+    "attention(16, 1024, 64)": {
+      "n": 39,
+      "spearman": 0.6826,
+      "top1_regret_pct": 8.0
+    }
+  },
+  "hardware_transfer": {
+    "matmul(2048, 2048, 2048): A100-SXM4-40GB\u2192RTX-4090": {
+      "transferred_ms": 0.1214,
+      "native_ms": 0.111,
+      "penalty_pct": 9.35,
+      "top_k_needed": 1,
+      "spearman": 0.8019
+    }
+  },
+  "search_efficiency": {
+    "random": {
+      "best_ms": 0.0636,
+      "speedup_vs_torch": 15.158,
+      "evals_to_best": 32,
+      "compile_rate": 1.0
+    },
+    "evolutionary": {
+      "best_ms": 0.062,
+      "speedup_vs_torch": 15.536,
+      "evals_to_best": 67,
+      "compile_rate": 0.988
+    },
+    "bayesian": {
+      "best_ms": 0.0604,
+      "speedup_vs_torch": 15.945,
+      "evals_to_best": 80,
+      "compile_rate": 1.0
+    },
+    "rl": {
+      "best_ms": 0.0639,
+      "speedup_vs_torch": 15.066,
+      "evals_to_best": 38,
+      "compile_rate": 1.0
+    },
+    "hybrid": {
+      "best_ms": 0.0609,
+      "speedup_vs_torch": 15.821,
+      "evals_to_best": 22,
+      "compile_rate": 1.0
+    }
+  }
+}
