@@ -1,0 +1,12 @@
+# Exhaustive grid over the small vecadd space (48 discrete configs x dtypes).
+task: vecadd
+shapes:
+  - [16777216]
+algorithm: grid
+seed: 0
+engine: auto
+max_evaluations: 100
+batch_size: 8
+benchmark:
+  warmup: 20
+  iterations: 100

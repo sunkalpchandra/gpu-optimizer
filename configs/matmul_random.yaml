@@ -1,0 +1,18 @@
+# Random-search baseline over matmul tiling space.
+task: matmul
+shapes:
+  - [1024, 1024, 1024]
+  - [2048, 2048, 2048]
+algorithm: random
+seed: 0
+engine: auto          # cuda if available, else labeled simulated engine
+gpu: A100-SXM4-40GB   # simulated-engine hardware model
+max_evaluations: 150
+batch_size: 8
+benchmark:
+  warmup: 20
+  iterations: 100
+reward:
+  mode: log_speedup
+  correctness_penalty: 1.0
+  compile_penalty: 0.5
