@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpu-optimizer"
+version = "0.1.0"
+description = "Autonomous GPU kernel optimization: RL + evolutionary search + learned performance models over real Triton kernels"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Sunkalp Chandra" }]
+dependencies = [
+    "numpy>=1.24",
+    "torch>=2.1",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+gpu = ["triton>=2.1"]
+server = ["fastapi>=0.110", "uvicorn>=0.27", "pydantic>=2.0"]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[tool.setuptools]
+packages = { find = { include = ["optimizer*", "compiler*", "benchmarks*", "hardware*", "server*"] } }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

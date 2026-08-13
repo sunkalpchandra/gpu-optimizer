@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data artifacts (regenerated; never commit benchmark databases)
+data/benchmark_db/*.sqlite
+data/benchmark_db/*.sqlite-journal
+data/benchmark_db/*.parquet
+data/replay_buffer/*.pt
+data/replay_buffer/*.npz
+runs/
+checkpoints/
+*.ckpt
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
