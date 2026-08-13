@@ -23,6 +23,16 @@ export function useFetch<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   return { data, error, loading };
 }
 
+/** Set the document title for the current page. */
+export function useTitle(title: string) {
+  useEffect(() => {
+    document.title = title ? `${title} · gpu-optimizer` : "gpu-optimizer";
+    return () => {
+      document.title = "gpu-optimizer";
+    };
+  }, [title]);
+}
+
 /** Poll while `active`; stops automatically when it flips false. */
 export function usePoll(fn: () => void | Promise<void>, ms: number, active: boolean) {
   const saved = useRef(fn);

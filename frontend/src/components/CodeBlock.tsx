@@ -6,7 +6,18 @@ const KEYWORDS = new Set(
    yield global nonlocal assert del`.split(/\s+/),
 );
 
-type Tok = { text: string; cls: string };
+type Tok = { text: string; color: string };
+
+const C = {
+  comment: "#7d8799",
+  string: "#a5d6ff",
+  decorator: "#d2a8ff",
+  number: "#79c0ff",
+  keyword: "#ff7b72",
+  constexpr: "#ffa657",
+  plain: "#c9d1e0",
+  punct: "#8b949e",
+};
 
 function tokenizeLine(line: string): Tok[] {
   const out: Tok[] = [];
@@ -15,21 +26,21 @@ function tokenizeLine(line: string): Tok[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(line)) !== null) {
     const [, comment, str, deco, num, word, sym, ws] = m;
-    if (comment != null) out.push({ text: comment, cls: "text-slate-500 italic" });
-    else if (str != null) out.push({ text: str, cls: "text-amber-300" });
-    else if (deco != null) out.push({ text: deco, cls: "text-cyan-300" });
-    else if (num != null) out.push({ text: num, cls: "text-violet-300" });
+    if (comment != null) out.push({ text: comment, color: C.comment });
+    else if (str != null) out.push({ text: str, color: C.string });
+    else if (deco != null) out.push({ text: deco, color: C.decorator });
+    else if (num != null) out.push({ text: num, color: C.number });
     else if (word != null)
       out.push({
         text: word,
-        cls: KEYWORDS.has(word)
-          ? "text-emerald-400 font-semibold"
+        color: KEYWORDS.has(word)
+          ? C.keyword
           : word === word.toUpperCase() && word.length > 1
-            ? "text-orange-300"
-            : "text-slate-200",
+            ? C.constexpr
+            : C.plain,
       });
-    else if (sym != null) out.push({ text: sym, cls: "text-slate-400" });
-    else if (ws != null) out.push({ text: ws, cls: "" });
+    else if (sym != null) out.push({ text: sym, color: C.punct });
+    else if (ws != null) out.push({ text: ws, color: C.plain });
   }
   return out;
 }
@@ -37,15 +48,18 @@ function tokenizeLine(line: string): Tok[] {
 export default function CodeBlock({ code }: { code: string }) {
   const lines = code.replace(/\n$/, "").split("\n");
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-800 bg-[#070b14] p-4 font-mono text-[13px] leading-6">
-      <table className="w-full border-collapse">
+    <div className="overflow-x-auto p-3 font-mono text-[12.5px] leading-[1.55]"
+         style={{ background: "#0a0d13" }}>
+      <table className="border-collapse">
         <tbody>
           {lines.map((line, i) => (
             <tr key={i}>
-              <td className="select-none pr-4 text-right align-top text-slate-700">{i + 1}</td>
+              <td className="select-none pr-4 text-right align-top" style={{ color: "#39414f" }}>
+                {i + 1}
+              </td>
               <td className="whitespace-pre">
                 {tokenizeLine(line).map((t, j) => (
-                  <span key={j} className={t.cls}>
+                  <span key={j} style={{ color: t.color, fontStyle: t.color === C.comment ? "italic" : undefined }}>
                     {t.text}
                   </span>
                 ))}

@@ -1,33 +1,163 @@
 @import "tailwindcss";
 
+/* Design tokens — GitHub-dark-adjacent operations-console palette.
+   Color carries meaning only: green=ok, amber=warn/simulated, red=failure,
+   blue=interactive. Everything else stays neutral. */
 :root {
   color-scheme: dark;
+  --bg: #0b0d12;
+  --panel: #10131a;
+  --border: #1f2530;
+  --border-strong: #2b3342;
+  --text: #c9d1e0;
+  --muted: #7d8799;
+  --faint: #4d5666;
+  --accent: #6ea8fe;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
 }
 
 body {
-  @apply bg-[#0a0f1a] text-slate-200 antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
 }
 
-.card {
-  @apply rounded-xl border border-slate-800 bg-slate-900/60 p-4;
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-.th {
-  @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500;
+/* Panels: flat, bordered, headed — no decorative rounding or shadows. */
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
 }
 
-.td {
-  @apply px-3 py-2 text-sm;
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
+/* Dense data tables */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.tbl th {
+  padding: 5px 10px;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 5px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  white-space: nowrap;
+}
+.tbl tbody tr:last-child td {
+  border-bottom: none;
+}
+.tbl tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.tbl .num {
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* KPI strip: one bordered row, cells divided by hairlines. */
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+}
+.kpi {
+  flex: 1 1 0;
+  min-width: 130px;
+  padding: 8px 14px;
+  border-right: 1px solid var(--border);
+}
+.kpi:last-child {
+  border-right: none;
+}
+.kpi .k-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.kpi .k-value {
+  margin-top: 2px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+.kpi .k-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* Controls */
 .input {
-  @apply rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm
-    text-slate-200 outline-none focus:border-emerald-500;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: #0d1017;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12.5px;
+  outline: none;
+}
+.input:focus {
+  border-color: var(--accent);
+}
+.btn {
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: #182030;
+  color: var(--accent);
+  padding: 4px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.btn {
-  @apply rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white
-    hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50;
+a {
+  color: inherit;
+}
+.link {
+  color: var(--accent);
+}
+.link:hover {
+  text-decoration: underline;
 }

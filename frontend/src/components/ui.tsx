@@ -1,81 +1,138 @@
 import { ReactNode } from "react";
 
-// ------------------------------------------------------------------ badges
+// ------------------------------------------------------------------ panels
 
-const PROVENANCE_COLORS: Record<string, string> = {
-  rl: "bg-violet-500/15 text-violet-300 border-violet-500/30",
-  evolutionary: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  bo: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-  random: "bg-slate-500/15 text-slate-300 border-slate-500/30",
-  grid: "bg-slate-500/15 text-slate-300 border-slate-500/30",
-  "baseline-naive": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  baseline: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  transfer: "bg-blue-500/15 text-blue-300 border-blue-500/30",
-  manual: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+export function Panel({
+  title,
+  meta,
+  children,
+  pad = false,
+}: {
+  title?: ReactNode;
+  meta?: ReactNode;
+  children: ReactNode;
+  pad?: boolean;
+}) {
+  return (
+    <section className="panel">
+      {title != null && (
+        <header className="panel-head">
+          <span>{title}</span>
+          {meta != null && <span className="ml-auto font-normal normal-case tracking-normal">{meta}</span>}
+        </header>
+      )}
+      <div className={pad ? "p-3" : undefined}>{children}</div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- statuses
+
+const STATUS_COLOR: Record<string, string> = {
+  ok: "var(--ok)",
+  finished: "var(--ok)",
+  running: "var(--accent)",
+  compile_error: "var(--err)",
+  runtime_error: "var(--err)",
+  error: "var(--err)",
+  incorrect: "var(--warn)",
 };
 
-export function ProvenanceBadge({ value }: { value: string }) {
-  const cls = PROVENANCE_COLORS[value] ?? PROVENANCE_COLORS.manual;
+/** Dot + label, the way real consoles mark state — color is the signal. */
+export function StatusDot({ value }: { value: string }) {
   return (
-    <span className={`inline-block rounded border px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span
+        className={`inline-block h-1.5 w-1.5 rounded-full ${value === "running" ? "animate-pulse" : ""}`}
+        style={{ background: STATUS_COLOR[value] ?? "var(--faint)" }}
+      />
+      <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+        {value.replace("_", " ")}
+      </span>
+    </span>
+  );
+}
+
+export const PROVENANCE_COLOR: Record<string, string> = {
+  rl: "#a371f7",
+  evolutionary: "#3fb950",
+  bo: "#39c5cf",
+  random: "#8b949e",
+  grid: "#8b949e",
+  "baseline-naive": "#d29922",
+  baseline: "#d29922",
+  transfer: "#6ea8fe",
+  manual: "#8b949e",
+};
+
+/** Compact mono tag; tinted text, no background pill. */
+export function ProvTag({ value }: { value: string }) {
+  return (
+    <span
+      className="mono text-[11px]"
+      style={{ color: PROVENANCE_COLOR[value] ?? "var(--muted)" }}
+    >
       {value}
     </span>
   );
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  ok: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  finished: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  running: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 animate-pulse",
-  compile_error: "bg-red-500/15 text-red-300 border-red-500/30",
-  runtime_error: "bg-red-500/15 text-red-300 border-red-500/30",
-  incorrect: "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  error: "bg-red-500/15 text-red-300 border-red-500/30",
-};
-
-export function StatusBadge({ value }: { value: string }) {
-  const cls = STATUS_COLORS[value] ?? STATUS_COLORS.ok;
-  return (
-    <span className={`inline-block rounded border px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>
-      {value.replace("_", " ")}
-    </span>
-  );
-}
-
-/** Amber marker attached to any number produced by the simulated engine. */
-export function SimBadge({ engine }: { engine: string | undefined }) {
+/** Marks a number produced by the simulated engine. */
+export function SimTag({ engine }: { engine: string | undefined }) {
   if (engine !== "simulated") return null;
   return (
     <span
       title="Simulated engine estimate — not a GPU measurement"
-      className="ml-1 inline-block rounded border border-amber-500/40 bg-amber-500/15
-        px-1 py-px align-middle text-[10px] font-semibold text-amber-300"
+      className="mono ml-1 align-middle text-[10px] font-semibold"
+      style={{ color: "var(--warn)" }}
     >
       sim
     </span>
   );
 }
 
-// ------------------------------------------------------------------- stats
+// -------------------------------------------------------------------- KPIs
 
-export function Stat({
+export function Kpi({
   label,
   value,
   sub,
-  accent = false,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
-  accent?: boolean;
 }) {
   return (
-    <div className="card">
-      <div className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`mt-1 text-2xl font-bold ${accent ? "text-emerald-400" : "text-slate-100"}`}>
-        {value}
-      </div>
-      {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
+    <div className="kpi">
+      <div className="k-label">{label}</div>
+      <div className="k-value">{value}</div>
+      {sub != null && <div className="k-sub">{sub}</div>}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------- page header
+
+export function PageHead({
+  crumbs,
+  right,
+}: {
+  crumbs: ReactNode[];
+  right?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <nav className="flex min-w-0 items-center gap-1.5 text-[13px]" style={{ color: "var(--muted)" }}>
+        {crumbs.map((c, i) => (
+          <span key={i} className="flex min-w-0 items-center gap-1.5">
+            {i > 0 && <span style={{ color: "var(--faint)" }}>/</span>}
+            <span className={i === crumbs.length - 1 ? "truncate font-semibold text-[color:var(--text)]" : ""}>
+              {c}
+            </span>
+          </span>
+        ))}
+      </nav>
+      {right != null && <div className="ml-auto flex items-center gap-2">{right}</div>}
     </div>
   );
 }
@@ -84,7 +141,7 @@ export function Stat({
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="card flex min-h-32 items-center justify-center text-sm text-slate-500">
+    <div className="flex min-h-24 items-center justify-center p-4 text-[12.5px]" style={{ color: "var(--faint)" }}>
       {children}
     </div>
   );
@@ -92,9 +149,9 @@ export function Empty({ children }: { children: ReactNode }) {
 
 export function Loading() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="card h-20 animate-pulse bg-slate-900" />
+        <div key={i} className="panel h-16 animate-pulse" />
       ))}
     </div>
   );
@@ -102,12 +159,33 @@ export function Loading() {
 
 export function ErrorBox({ error }: { error: string }) {
   return (
-    <div className="card border-red-500/30 text-sm text-red-300">
-      Failed to load: {error}
+    <div className="panel p-3 text-[12.5px]" style={{ borderColor: "#5c2a2e", color: "var(--err)" }}>
+      request failed: {error}
     </div>
   );
 }
 
-export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-2 mt-6 text-sm font-bold uppercase tracking-wider text-slate-400">{children}</h2>;
+// -------------------------------------------------------------------- misc
+
+export function Notice({
+  tone,
+  children,
+}: {
+  tone: "warn" | "info";
+  children: ReactNode;
+}) {
+  const color = tone === "warn" ? "var(--warn)" : "var(--accent)";
+  return (
+    <div
+      className="mb-3 flex items-start gap-2 rounded-[4px] border px-3 py-2 text-[12.5px]"
+      style={{
+        borderColor: `color-mix(in srgb, ${color} 35%, transparent)`,
+        background: `color-mix(in srgb, ${color} 7%, transparent)`,
+        color: "var(--text)",
+      }}
+    >
+      <span className="mt-[3px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+      <div>{children}</div>
+    </div>
+  );
 }

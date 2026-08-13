@@ -1,11 +1,12 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api, fmtMs } from "../api";
 import CodeBlock from "../components/CodeBlock";
-import { useFetch } from "../components/hooks";
-import { ErrorBox, Loading, SimBadge, StatusBadge } from "../components/ui";
+import { useFetch, useTitle } from "../components/hooks";
+import { ErrorBox, Loading, PageHead, Panel, SimTag, StatusDot } from "../components/ui";
 
 export default function KernelViewer() {
   const { candidateId = "" } = useParams();
+  useTitle(`kernel ${candidateId.slice(0, 10)}`);
   const { data, error, loading } = useFetch(() => api.source(candidateId), [candidateId]);
 
   if (loading) return <Loading />;
@@ -13,32 +14,39 @@ export default function KernelViewer() {
   if (!data) return null;
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-bold text-slate-100">
-          {data.task} <span className="text-slate-500">{data.shape.join("×")}</span>
-        </h1>
-        <StatusBadge value={data.status} />
-        <span className="text-sm text-slate-400">
+    <div className="space-y-3">
+      <PageHead
+        crumbs={[
+          <Link key="r" className="link" to="/">runs</Link>,
+          "kernel",
+          <span key="id" className="mono">{data.candidate_id.slice(0, 12)}</span>,
+        ]}
+        right={<StatusDot value={data.status} />}
+      />
+
+      <div
+        className="mono flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[4px] border px-3 py-1.5 text-[11.5px]"
+        style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+      >
+        <span>{data.task}</span>
+        <span>{data.shape.join("×")}</span>
+        <span style={{ color: "var(--text)" }}>
           {fmtMs(data.latency_ms)}
-          <SimBadge engine={data.engine} />
+          <SimTag engine={data.engine} />
         </span>
-        <span className="ml-auto font-mono text-xs text-slate-600">{data.candidate_id}</span>
+        <span className="flex flex-wrap gap-x-3">
+          {Object.entries(data.config).map(([k, v]) => (
+            <span key={k}>
+              <span style={{ color: "var(--faint)" }}>{k}=</span>
+              <span style={{ color: "var(--text)" }}>{String(v)}</span>
+            </span>
+          ))}
+        </span>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {Object.entries(data.config).map(([k, v]) => (
-          <span
-            key={k}
-            className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 font-mono text-xs"
-          >
-            <span className="text-slate-500">{k}=</span>
-            <span className="text-emerald-300">{String(v)}</span>
-          </span>
-        ))}
-      </div>
-
-      <CodeBlock code={data.source} />
+      <Panel title={`${data.task} kernel · Triton`} meta={<span className="mono">{data.candidate_id}</span>}>
+        <CodeBlock code={data.source} />
+      </Panel>
     </div>
   );
 }

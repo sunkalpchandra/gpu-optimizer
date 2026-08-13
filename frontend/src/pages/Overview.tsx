@@ -1,18 +1,29 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, apiMode, fmtCount, fmtMs, fmtPct, fmtSpeedup, Run, TaskInfo } from "../api";
-import { useFetch, usePoll } from "../components/hooks";
+import {
+  api,
+  apiMode,
+  fmtCount,
+  fmtDuration,
+  fmtMs,
+  fmtPct,
+  fmtRelTime,
+  fmtSpeedup,
+  Run,
+  TaskInfo,
+} from "../api";
+import { useFetch, usePoll, useTitle } from "../components/hooks";
 import {
   Empty,
   ErrorBox,
+  Kpi,
   Loading,
-  SectionTitle,
-  SimBadge,
-  Stat,
-  StatusBadge,
+  Panel,
+  SimTag,
+  StatusDot,
 } from "../components/ui";
 
-function NewRunForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: string[] }) {
+function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: string[] }) {
   const nav = useNavigate();
   const [task, setTask] = useState("matmul");
   const [shape, setShape] = useState("1024, 1024, 1024");
@@ -40,15 +51,8 @@ function NewRunForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
         .filter((x) => !Number.isNaN(x));
       if (!parsed.length) throw new Error("invalid shape");
       const { run_id } = await api.optimize({
-        task,
-        shape: parsed,
-        algorithm,
-        max_evaluations: budget,
-        batch_size: 8,
-        seed: 0,
-        engine,
-        warmup: 10,
-        iterations: 50,
+        task, shape: parsed, algorithm, max_evaluations: budget,
+        batch_size: 8, seed: 0, engine, warmup: 10, iterations: 50,
       });
       nav(`/runs/${run_id}`);
     } catch (err) {
@@ -58,117 +62,104 @@ function NewRunForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
   }
 
   return (
-    <form onSubmit={submit} className="card">
-      <div className="mb-3 text-sm font-bold text-slate-200">New optimization</div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">Task</span>
-          <select className="input w-full" value={task} onChange={(e) => setTask(e.target.value)}>
-            {tasks.map((t) => (
-              <option key={t.name}>{t.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="col-span-2 block">
-          <span className="mb-1 block text-xs text-slate-500">
-            Shape {taskInfo && <span className="text-slate-600">(space: {fmtCount(taskInfo.space_size)} configs)</span>}
-          </span>
-          <input className="input w-full" value={shape} onChange={(e) => setShape(e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">Algorithm</span>
-          <select
-            className="input w-full"
-            value={algorithm}
-            onChange={(e) => setAlgorithm(e.target.value)}
-          >
-            {algorithms.map((a) => (
-              <option key={a}>{a}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">Budget</span>
-          <input
-            type="number"
-            min={1}
-            max={5000}
-            className="input w-full"
-            value={budget}
-            onChange={(e) => setBudget(parseInt(e.target.value || "1", 10))}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">Engine</span>
-          <select
-            className="input w-full"
-            value={engine}
-            onChange={(e) => setEngine(e.target.value as typeof engine)}
-          >
-            <option value="auto">auto</option>
-            <option value="cuda">cuda</option>
-            <option value="simulated">simulated</option>
-          </select>
-        </label>
-      </div>
-      <div className="mt-3 flex items-center gap-3">
-        <button className="btn" disabled={busy || readOnly}>
-          {busy ? "Starting…" : "Start search"}
-        </button>
-        {readOnly && (
-          <span className="text-xs text-slate-500">
-            unavailable in the static demo — run the backend locally to launch searches
-          </span>
-        )}
-        {error && <span className="text-xs text-red-400">{error}</span>}
-      </div>
+    <form onSubmit={submit} className="flex flex-wrap items-end gap-3 p-3">
+      <label className="block">
+        <div className="k-label mb-1">Task</div>
+        <select className="input" value={task} onChange={(e) => setTask(e.target.value)}>
+          {tasks.map((t) => (
+            <option key={t.name}>{t.name}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <div className="k-label mb-1">
+          Shape{taskInfo ? ` · ${fmtCount(taskInfo.space_size)} configs` : ""}
+        </div>
+        <input className="input mono w-56" value={shape} onChange={(e) => setShape(e.target.value)} />
+      </label>
+      <label className="block">
+        <div className="k-label mb-1">Algorithm</div>
+        <select className="input" value={algorithm} onChange={(e) => setAlgorithm(e.target.value)}>
+          {algorithms.map((a) => (
+            <option key={a}>{a}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <div className="k-label mb-1">Budget</div>
+        <input type="number" min={1} max={5000} className="input mono w-20" value={budget}
+               onChange={(e) => setBudget(parseInt(e.target.value || "1", 10))} />
+      </label>
+      <label className="block">
+        <div className="k-label mb-1">Engine</div>
+        <select className="input" value={engine} onChange={(e) => setEngine(e.target.value as typeof engine)}>
+          <option value="auto">auto</option>
+          <option value="cuda">cuda</option>
+          <option value="simulated">simulated</option>
+        </select>
+      </label>
+      <button className="btn" disabled={busy || readOnly}>
+        {busy ? "starting…" : "Start search"}
+      </button>
+      {readOnly && (
+        <span className="text-[11.5px]" style={{ color: "var(--faint)" }}>
+          disabled in snapshot mode — run the backend locally
+        </span>
+      )}
+      {error && <span className="text-[11.5px]" style={{ color: "var(--err)" }}>{error}</span>}
     </form>
   );
 }
 
 function RunsTable({ runs }: { runs: Run[] }) {
   if (!runs.length)
-    return <Empty>No runs yet — start one above, or run `python optimize.py`.</Empty>;
+    return <Empty>no runs recorded — launch one above or run `python optimize.py`</Empty>;
   return (
-    <div className="card overflow-x-auto p-0">
-      <table className="w-full">
-        <thead className="border-b border-slate-800">
+    <div className="overflow-x-auto">
+      <table className="tbl">
+        <thead>
           <tr>
-            <th className="th">run</th>
-            <th className="th">task</th>
-            <th className="th">shape</th>
-            <th className="th">algorithm</th>
-            <th className="th">status</th>
-            <th className="th">best</th>
-            <th className="th">speedup</th>
-            <th className="th">evals</th>
+            <th>run</th>
+            <th>task</th>
+            <th>shape</th>
+            <th>algorithm</th>
+            <th>status</th>
+            <th className="num">best</th>
+            <th className="num">speedup</th>
+            <th className="num">evals</th>
+            <th className="num">duration</th>
+            <th className="num">started</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/60">
+        <tbody>
           {runs.map((r) => {
             const speedup =
               r.best_latency_ms && r.baseline_torch_ms
                 ? r.baseline_torch_ms / r.best_latency_ms
                 : null;
             return (
-              <tr key={r.run_id} className="hover:bg-slate-900/40">
-                <td className="td">
-                  <Link className="font-mono text-xs text-cyan-300 hover:underline" to={`/runs/${r.run_id}`}>
+              <tr key={r.run_id}>
+                <td>
+                  <Link className="link mono text-[11.5px]" to={`/runs/${r.run_id}`}>
                     {r.run_id}
                   </Link>
                 </td>
-                <td className="td">{r.task}</td>
-                <td className="td font-mono text-xs">{r.shape.join("×")}</td>
-                <td className="td">{r.algorithm}</td>
-                <td className="td">
-                  <StatusBadge value={r.status} />
-                </td>
-                <td className="td">
+                <td>{r.task}</td>
+                <td className="mono text-[11.5px]">{r.shape.join("×")}</td>
+                <td>{r.algorithm}</td>
+                <td><StatusDot value={r.status} /></td>
+                <td className="num">
                   {fmtMs(r.best_latency_ms)}
-                  <SimBadge engine={r.engine} />
+                  <SimTag engine={r.engine} />
                 </td>
-                <td className="td">{fmtSpeedup(speedup)}</td>
-                <td className="td">{fmtCount(r.candidates_evaluated)}</td>
+                <td className="num">{fmtSpeedup(speedup)}</td>
+                <td className="num">{fmtCount(r.candidates_evaluated)}</td>
+                <td className="num" style={{ color: "var(--muted)" }}>
+                  {fmtDuration(r.started_at, r.finished_at)}
+                </td>
+                <td className="num" style={{ color: "var(--muted)" }}>
+                  {fmtRelTime(r.started_at)}
+                </td>
               </tr>
             );
           })}
@@ -179,6 +170,7 @@ function RunsTable({ runs }: { runs: Run[] }) {
 }
 
 export default function Overview() {
+  useTitle("Overview");
   const { data: status, error, loading } = useFetch(() => api.status(), []);
   const { data: tasks } = useFetch(() => api.tasks(), []);
   const { data: algorithms } = useFetch(() => api.algorithms(), []);
@@ -195,53 +187,47 @@ export default function Overview() {
   const ov = status.overview;
   const env = status.environment;
   return (
-    <div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat
-          label="Best speedup"
-          value={fmtSpeedup(ov.best_speedup)}
-          accent
-          sub="vs PyTorch baseline"
+    <div className="space-y-3">
+      <div className="kpis">
+        <Kpi label="Best speedup" value={fmtSpeedup(ov.best_speedup)} sub="vs PyTorch baseline" />
+        <Kpi label="Kernels optimized" value={fmtCount(ov.kernels_optimized)} sub="task × shape" />
+        <Kpi
+          label="Benchmarks"
+          value={fmtCount(ov.benchmarks_completed)}
+          sub={`${fmtCount(ov.successful_benchmarks)} ok`}
         />
-        <Stat label="Kernels optimized" value={fmtCount(ov.kernels_optimized)} sub="task × shape pairs" />
-        <Stat label="Benchmarks" value={fmtCount(ov.benchmarks_completed)} sub={`${fmtCount(ov.successful_benchmarks)} successful`} />
-        <Stat label="Compile success" value={fmtPct(ov.compile_success_rate)} />
-        <Stat label="Search runs" value={fmtCount(ov.runs)} sub={status.active_runs.length ? `${status.active_runs.length} live` : undefined} />
+        <Kpi label="Compile success" value={fmtPct(ov.compile_success_rate)} />
+        <Kpi
+          label="Runs"
+          value={fmtCount(ov.runs)}
+          sub={status.active_runs.length ? `${status.active_runs.length} active` : "none active"}
+        />
       </div>
 
-      <SectionTitle>Environment</SectionTitle>
-      <div className="card grid grid-cols-2 gap-x-8 gap-y-1 text-sm lg:grid-cols-4">
-        <div>
-          <span className="text-slate-500">Python</span> {env.python}
-        </div>
-        <div>
-          <span className="text-slate-500">PyTorch</span> {env.torch}
-        </div>
-        <div>
-          <span className="text-slate-500">CUDA</span>{" "}
-          {env.cuda_available ? env.cuda_version ?? "yes" : <span className="text-amber-300">not available</span>}
-        </div>
-        <div>
-          <span className="text-slate-500">Triton</span>{" "}
-          {env.triton_available ? env.triton_version : <span className="text-amber-300">not available</span>}
-        </div>
-        {env.gpu_name && (
-          <div className="col-span-2">
-            <span className="text-slate-500">GPU</span> {env.gpu_name}
-          </div>
-        )}
-        {env.notes.map((n, i) => (
-          <div key={i} className="col-span-full text-xs text-amber-300/80">
-            note: {n}
-          </div>
-        ))}
+      <div
+        className="mono flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[4px] border px-3 py-1.5 text-[11.5px]"
+        style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+      >
+        <span>python {env.python}</span>
+        <span>torch {env.torch}</span>
+        <span>
+          cuda{" "}
+          {env.cuda_available ? (env.cuda_version ?? "yes") : <span style={{ color: "var(--warn)" }}>unavailable</span>}
+        </span>
+        <span>
+          triton{" "}
+          {env.triton_available ? env.triton_version : <span style={{ color: "var(--warn)" }}>unavailable</span>}
+        </span>
+        {env.gpu_name && <span>{env.gpu_name}</span>}
       </div>
 
-      <SectionTitle>New optimization</SectionTitle>
-      {tasks && algorithms ? <NewRunForm tasks={tasks} algorithms={algorithms} /> : <Loading />}
+      <Panel title="Launch search">
+        {tasks && algorithms ? <LaunchForm tasks={tasks} algorithms={algorithms} /> : <Loading />}
+      </Panel>
 
-      <SectionTitle>Recent runs</SectionTitle>
-      {runs ? <RunsTable runs={runs} /> : <Loading />}
+      <Panel title={`Runs${runs ? ` (${runs.length})` : ""}`}>
+        {runs ? <RunsTable runs={runs} /> : <Loading />}
+      </Panel>
     </div>
   );
 }

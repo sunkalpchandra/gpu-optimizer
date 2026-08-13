@@ -272,3 +272,21 @@ export function fmtSpeedup(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
   return `${v.toFixed(2)}×`;
 }
+
+export function fmtRelTime(epochSeconds: number | null | undefined): string {
+  if (!epochSeconds) return "—";
+  const s = Date.now() / 1000 - epochSeconds;
+  if (s < 60) return `${Math.max(1, Math.floor(s))}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+export function fmtDuration(startEpoch: number | null | undefined,
+                            endEpoch: number | null | undefined): string {
+  if (!startEpoch || !endEpoch) return "—";
+  const s = endEpoch - startEpoch;
+  if (s < 60) return `${s.toFixed(0)}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}

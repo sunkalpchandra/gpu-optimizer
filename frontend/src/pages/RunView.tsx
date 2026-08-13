@@ -2,30 +2,41 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  ComposedChart,
   ResponsiveContainer,
   Scatter,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { api, fmtCount, fmtMs, fmtPct, fmtSpeedup, Iteration, Run } from "../api";
-import { usePoll } from "../components/hooks";
+import {
+  api,
+  fmtCount,
+  fmtDuration,
+  fmtMs,
+  fmtPct,
+  fmtSpeedup,
+  Iteration,
+  Run,
+} from "../api";
+import { usePoll, useTitle } from "../components/hooks";
 import {
   Empty,
   ErrorBox,
+  Kpi,
   Loading,
-  ProvenanceBadge,
-  SectionTitle,
-  SimBadge,
-  Stat,
-  StatusBadge,
+  PageHead,
+  Panel,
+  ProvTag,
+  SimTag,
+  StatusDot,
 } from "../components/ui";
 
 export default function RunView() {
   const { runId = "" } = useParams();
+  useTitle(runId);
   const [run, setRun] = useState<Run | null>(null);
   const [iters, setIters] = useState<Iteration[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -73,142 +84,159 @@ export default function RunView() {
       : null;
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="font-mono text-lg font-bold text-slate-100">{run.run_id}</h1>
-        <StatusBadge value={run.status} />
-        <span className="text-sm text-slate-400">
-          {run.task} {run.shape.join("×")} · {run.algorithm} · {run.gpu_name}
+    <div className="space-y-3">
+      <PageHead
+        crumbs={[<Link key="r" className="link" to="/">runs</Link>, <span key="id" className="mono">{run.run_id}</span>]}
+        right={
+          <>
+            <StatusDot value={run.status} />
+            <Link to={`/runs/${runId}/tree`} className="btn">
+              Search tree
+            </Link>
+          </>
+        }
+      />
+
+      <div
+        className="mono flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[4px] border px-3 py-1.5 text-[11.5px]"
+        style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+      >
+        <span>{run.task}</span>
+        <span>{run.shape.join("×")}</span>
+        <span>{run.algorithm}</span>
+        <span>{run.gpu_name}</span>
+        <span>
+          engine {run.engine}
+          <SimTag engine={run.engine} />
         </span>
-        <SimBadge engine={run.engine} />
-        <Link to={`/runs/${runId}/tree`} className="btn ml-auto">
-          Search tree →
-        </Link>
+        <span>elapsed {fmtDuration(run.started_at, run.finished_at ?? Date.now() / 1000)}</span>
       </div>
       {run.error && <ErrorBox error={run.error} />}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat
+      <div className="kpis">
+        <Kpi
           label="Best latency"
           value={
             <>
               {fmtMs(run.best_latency_ms)}
-              <SimBadge engine={run.engine} />
+              <SimTag engine={run.engine} />
             </>
           }
-          accent
         />
-        <Stat label="Speedup vs torch" value={fmtSpeedup(speedup)} />
-        <Stat
+        <Kpi label="Speedup" value={fmtSpeedup(speedup)} sub="vs torch baseline" />
+        <Kpi
           label="Baselines"
-          value={<span className="text-base">{fmtMs(run.baseline_torch_ms)}</span>}
+          value={fmtMs(run.baseline_torch_ms)}
           sub={`torch · naive ${fmtMs(run.baseline_naive_ms)}`}
         />
-        <Stat label="Evaluated" value={fmtCount(run.candidates_evaluated)} />
-        <Stat label="Compile success" value={fmtPct(run.compile_success_rate)} />
+        <Kpi label="Evaluated" value={fmtCount(run.candidates_evaluated)} />
+        <Kpi label="Compile success" value={fmtPct(run.compile_success_rate)} />
       </div>
 
-      <SectionTitle>
-        Convergence{" "}
-        <button
-          onClick={() => setLogScale((s) => !s)}
-          className="ml-2 rounded border border-slate-700 px-1.5 py-0.5 text-[11px] font-normal normal-case text-slate-400 hover:text-slate-200"
-        >
-          {logScale ? "linear" : "log"} y
-        </button>
-      </SectionTitle>
-      <div className="card h-72">
-        {chartData.length ? (
-          <ResponsiveContainer>
-            <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-              <XAxis dataKey="iteration" stroke="#64748b" fontSize={11} />
-              <YAxis
-                stroke="#64748b"
-                fontSize={11}
-                scale={logScale ? "log" : "auto"}
-                domain={logScale ? ["auto", "auto"] : [0, "auto"]}
-                tickFormatter={(v: number) => fmtMs(v)}
-                width={80}
-              />
-              <Tooltip
-                contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 12 }}
-                formatter={(v) => fmtMs(v as number)}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Scatter dataKey="actual" name="candidate latency" fill="#38bdf8" opacity={0.55} />
-              <Line
-                dataKey="best"
-                name="best so far"
-                stroke="#34d399"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        ) : (
-          <Empty>Waiting for first iterations…</Empty>
-        )}
-      </div>
-
-      <SectionTitle>Iterations</SectionTitle>
-      {iters.length ? (
-        <div className="card max-h-[32rem] overflow-auto p-0">
-          <table className="w-full">
-            <thead className="sticky top-0 border-b border-slate-800 bg-slate-950">
-              <tr>
-                <th className="th">#</th>
-                <th className="th">candidate</th>
-                <th className="th">source</th>
-                <th className="th">status</th>
-                <th className="th">predicted</th>
-                <th className="th">actual</th>
-                <th className="th">reward</th>
-                <th className="th">best so far</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {[...iters].reverse().map((it) => (
-                <tr key={it.id} className="hover:bg-slate-900/40">
-                  <td className="td text-slate-500">{it.iteration}</td>
-                  <td className="td">
-                    <Link
-                      to={`/kernels/${it.candidate_id}`}
-                      className="font-mono text-xs text-cyan-300 hover:underline"
-                    >
-                      {it.candidate_id.slice(0, 10)}
-                    </Link>
-                  </td>
-                  <td className="td">
-                    <ProvenanceBadge value={it.note || "manual"} />
-                  </td>
-                  <td className="td">
-                    <StatusBadge value={it.status} />
-                  </td>
-                  <td className="td text-slate-400">
-                    {it.predicted_ms != null
-                      ? `${fmtMs(it.predicted_ms)} ± ${fmtMs(it.predicted_std ?? 0)}`
-                      : "—"}
-                  </td>
-                  <td className="td">
-                    {fmtMs(it.actual_ms)}
-                    {it.actual_ms != null && <SimBadge engine={run.engine} />}
-                  </td>
-                  <td className="td">
-                    <span className={(it.reward ?? 0) >= 0 ? "text-emerald-300" : "text-red-300"}>
-                      {it.reward?.toFixed(3) ?? "—"}
-                    </span>
-                  </td>
-                  <td className="td text-slate-400">{fmtMs(it.best_so_far_ms)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Panel
+        title="Convergence"
+        meta={
+          <button
+            onClick={() => setLogScale((s) => !s)}
+            className="mono text-[11px]"
+            style={{ color: "var(--accent)" }}
+          >
+            {logScale ? "log" : "linear"} y
+          </button>
+        }
+      >
+        <div className="h-64 p-2">
+          {chartData.length ? (
+            <ResponsiveContainer>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="iteration" stroke="var(--faint)" fontSize={10.5} tickLine={false} />
+                <YAxis
+                  stroke="var(--faint)"
+                  fontSize={10.5}
+                  tickLine={false}
+                  scale={logScale ? "log" : "auto"}
+                  domain={logScale ? ["auto", "auto"] : [0, "auto"]}
+                  tickFormatter={(v: number) => fmtMs(v)}
+                  width={76}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--panel)",
+                    border: "1px solid var(--border-strong)",
+                    borderRadius: 4,
+                    fontSize: 11.5,
+                    fontFamily: "ui-monospace, Menlo, monospace",
+                  }}
+                  formatter={(v) => fmtMs(v as number)}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Scatter dataKey="actual" name="candidate" fill="#6ea8fe" opacity={0.45} />
+                <Line
+                  dataKey="best"
+                  name="best so far"
+                  stroke="var(--ok)"
+                  strokeWidth={1.6}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <Empty>waiting for iterations…</Empty>
+          )}
         </div>
-      ) : (
-        <Empty>No iterations recorded yet.</Empty>
-      )}
+      </Panel>
+
+      <Panel title={`Iterations (${iters.length})`}>
+        {iters.length ? (
+          <div className="max-h-[30rem] overflow-auto">
+            <table className="tbl">
+              <thead className="sticky top-0" style={{ background: "var(--panel)" }}>
+                <tr>
+                  <th className="num">#</th>
+                  <th>candidate</th>
+                  <th>source</th>
+                  <th>status</th>
+                  <th className="num">predicted</th>
+                  <th className="num">actual</th>
+                  <th className="num">reward</th>
+                  <th className="num">best</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...iters].reverse().map((it) => (
+                  <tr key={it.id}>
+                    <td className="num" style={{ color: "var(--faint)" }}>{it.iteration}</td>
+                    <td>
+                      <Link to={`/kernels/${it.candidate_id}`} className="link mono text-[11.5px]">
+                        {it.candidate_id.slice(0, 10)}
+                      </Link>
+                    </td>
+                    <td><ProvTag value={it.note || "manual"} /></td>
+                    <td><StatusDot value={it.status} /></td>
+                    <td className="num" style={{ color: "var(--muted)" }}>
+                      {it.predicted_ms != null
+                        ? `${fmtMs(it.predicted_ms)} ±${fmtMs(it.predicted_std ?? 0)}`
+                        : "—"}
+                    </td>
+                    <td className="num">
+                      {fmtMs(it.actual_ms)}
+                      {it.actual_ms != null && <SimTag engine={run.engine} />}
+                    </td>
+                    <td className="num" style={{ color: (it.reward ?? 0) >= 0 ? "var(--ok)" : "var(--err)" }}>
+                      {it.reward != null ? it.reward.toFixed(3) : "—"}
+                    </td>
+                    <td className="num" style={{ color: "var(--muted)" }}>{fmtMs(it.best_so_far_ms)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty>no iterations recorded yet</Empty>
+        )}
+      </Panel>
     </div>
   );
 }
