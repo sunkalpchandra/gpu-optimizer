@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   api,
@@ -10,6 +10,7 @@ import {
   fmtRelTime,
   fmtSpeedup,
   Run,
+  Status,
   TaskInfo,
 } from "../api";
 import { useFetch, usePoll, useTitle } from "../components/hooks";
@@ -25,9 +26,11 @@ import {
 
 function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: string[] }) {
   const nav = useNavigate();
-  const [task, setTask] = useState("matmul");
-  const [shape, setShape] = useState("1024, 1024, 1024");
-  const [algorithm, setAlgorithm] = useState("hybrid");
+  const [task, setTask] = useState(() => tasks[0]?.name ?? "");
+  const [shape, setShape] = useState(() => (tasks[0]?.default_shapes[0] ?? []).join(", "));
+  const [algorithm, setAlgorithm] = useState(() =>
+    algorithms.includes("hybrid") ? "hybrid" : (algorithms[0] ?? ""),
+  );
   const [budget, setBudget] = useState(120);
   const [engine, setEngine] = useState<"auto" | "cuda" | "simulated">("auto");
   const [busy, setBusy] = useState(false);
@@ -36,9 +39,12 @@ function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
   const readOnly = mode === "static";
 
   const taskInfo = tasks.find((t) => t.name === task);
-  useEffect(() => {
-    if (taskInfo) setShape(taskInfo.default_shapes[0].join(", "));
-  }, [task]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function pickTask(name: string) {
+    setTask(name);
+    const info = tasks.find((t) => t.name === name);
+    if (info) setShape(info.default_shapes[0].join(", "));
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -65,7 +71,7 @@ function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
     <form onSubmit={submit} className="flex flex-wrap items-end gap-3 p-3">
       <label className="block">
         <div className="k-label mb-1">Task</div>
-        <select className="input" value={task} onChange={(e) => setTask(e.target.value)}>
+        <select className="input" value={task} onChange={(e) => pickTask(e.target.value)}>
           {tasks.map((t) => (
             <option key={t.name}>{t.name}</option>
           ))}
@@ -98,12 +104,12 @@ function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
           <option value="simulated">simulated</option>
         </select>
       </label>
-      <button className="btn" disabled={busy || readOnly}>
+      <button type="submit" className="btn" disabled={busy || readOnly}>
         {busy ? "starting…" : "Start search"}
       </button>
       {readOnly && (
         <span className="text-[11.5px]" style={{ color: "var(--faint)" }}>
-          disabled in snapshot mode — run the backend locally
+          disabled in snapshot mode
         </span>
       )}
       {error && <span className="text-[11.5px]" style={{ color: "var(--err)" }}>{error}</span>}
@@ -113,7 +119,12 @@ function LaunchForm({ tasks, algorithms }: { tasks: TaskInfo[]; algorithms: stri
 
 function RunsTable({ runs }: { runs: Run[] }) {
   if (!runs.length)
-    return <Empty>no runs recorded — launch one above or run `python optimize.py`</Empty>;
+    return (
+      <Empty>
+        no runs recorded — launch one above or use{" "}
+        <span className="mono ml-1">python optimize.py</span>
+      </Empty>
+    );
   return (
     <div className="overflow-x-auto">
       <table className="tbl">
@@ -171,23 +182,36 @@ function RunsTable({ runs }: { runs: Run[] }) {
 
 export default function Overview() {
   useTitle("Overview");
-  const { data: status, error, loading } = useFetch(() => api.status(), []);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [runs, setRuns] = useState<Run[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { data: tasks } = useFetch(() => api.tasks(), []);
   const { data: algorithms } = useFetch(() => api.algorithms(), []);
-  const [runs, setRuns] = useState<Run[] | null>(null);
 
-  const refreshRuns = () => api.runs().then(setRuns).catch(() => {});
-  useEffect(() => void refreshRuns(), []);
-  usePoll(refreshRuns, 3000, (runs ?? []).some((r) => r.status === "running"));
+  const refresh = useCallback(async () => {
+    try {
+      const [s, r] = await Promise.all([api.status(), api.runs()]);
+      setStatus(s);
+      setRuns(r);
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
 
-  if (loading) return <Loading />;
-  if (error) return <ErrorBox error={error} />;
-  if (!status) return null;
+  useEffect(() => void refresh(), [refresh]);
+  const anyRunning = (runs ?? []).some((r) => r.status === "running");
+  usePoll(refresh, 15000, !anyRunning); // steady refresh catches external runs
+  usePoll(refresh, 3000, anyRunning);
+
+  if (error && !status) return <ErrorBox error={error} />;
+  if (!status) return <Loading />;
 
   const ov = status.overview;
   const env = status.environment;
   return (
     <div className="space-y-3">
+      {error && <ErrorBox error={error} />}
       <div className="kpis">
         <Kpi label="Best speedup" value={fmtSpeedup(ov.best_speedup)} sub="vs PyTorch baseline" />
         <Kpi label="Kernels optimized" value={fmtCount(ov.kernels_optimized)} sub="task × shape" />
@@ -222,10 +246,14 @@ export default function Overview() {
       </div>
 
       <Panel title="Launch search">
-        {tasks && algorithms ? <LaunchForm tasks={tasks} algorithms={algorithms} /> : <Loading />}
+        {tasks?.length && algorithms?.length ? (
+          <LaunchForm tasks={tasks} algorithms={algorithms} />
+        ) : (
+          <Empty>loading task registry</Empty>
+        )}
       </Panel>
 
-      <Panel title={`Runs${runs ? ` (${runs.length})` : ""}`}>
+      <Panel title={`Runs (${runs?.length ?? 0})`}>
         {runs ? <RunsTable runs={runs} /> : <Loading />}
       </Panel>
     </div>

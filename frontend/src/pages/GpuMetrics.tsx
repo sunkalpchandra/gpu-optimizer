@@ -73,12 +73,7 @@ export default function GpuMetrics() {
           >
             <div className="px-3 pt-2 text-[13px] font-semibold">{data.current.name}</div>
             <SpecTable spec={data.current} />
-            {!data.cuda_available && (
-              <p className="px-3 pb-2 pt-1 text-[11.5px]" style={{ color: "var(--warn)" }}>
-                No CUDA device present — this catalog spec drives the simulated engine; its
-                results are labeled accordingly.
-              </p>
-            )}
+
           </Panel>
         </div>
 
@@ -89,7 +84,23 @@ export default function GpuMetrics() {
                 <BarChart data={catalog} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
                   <XAxis dataKey="key" stroke="var(--faint)" fontSize={10.5} tickLine={false} />
-                  <YAxis stroke="var(--faint)" fontSize={10.5} tickLine={false} />
+                  <YAxis
+                    yAxisId="tflops"
+                    stroke="var(--faint)"
+                    fontSize={10.5}
+                    tickLine={false}
+                    label={{ value: "TFLOPS", angle: -90, position: "insideLeft",
+                             fill: "var(--faint)", fontSize: 10 }}
+                  />
+                  <YAxis
+                    yAxisId="bw"
+                    orientation="right"
+                    stroke="var(--faint)"
+                    fontSize={10.5}
+                    tickLine={false}
+                    label={{ value: "TB/s", angle: 90, position: "insideRight",
+                             fill: "var(--faint)", fontSize: 10 }}
+                  />
                   <Tooltip
                     contentStyle={{
                       background: "var(--panel)",
@@ -100,9 +111,9 @@ export default function GpuMetrics() {
                     cursor={{ fill: "rgba(110,168,254,0.05)" }}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="fp16" name="FP16 TFLOPS" fill="#3fb950" />
-                  <Bar dataKey="fp32" name="FP32 TFLOPS" fill="#6ea8fe" />
-                  <Bar dataKey="bandwidth_tbs" name="Bandwidth TB/s" fill="#a371f7" />
+                  <Bar yAxisId="tflops" dataKey="fp16" name="fp16 tflops" fill="#3fb950" />
+                  <Bar yAxisId="tflops" dataKey="fp32" name="fp32 tflops" fill="#6ea8fe" />
+                  <Bar yAxisId="bw" dataKey="bandwidth_tbs" name="bandwidth tb/s" fill="#a371f7" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -117,7 +128,7 @@ export default function GpuMetrics() {
               <tr>
                 <th>gpu</th>
                 <th>arch</th>
-                <th className="num">SMs</th>
+                <th className="num">sm count</th>
                 <th className="num">memory</th>
                 <th className="num">bandwidth</th>
                 <th className="num">fp32</th>

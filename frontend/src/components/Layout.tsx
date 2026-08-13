@@ -26,7 +26,7 @@ export default function Layout() {
   const { data: mode } = useFetch(() => apiMode(), []);
 
   const env = status?.environment;
-  const engineLabel = env ? (env.cuda_available ? env.gpu_name ?? "cuda" : "simulated engine") : "…";
+  const engineLabel = env ? (env.cuda_available ? env.gpu_name ?? "cuda" : "simulated") : "…";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -39,7 +39,7 @@ export default function Layout() {
           GPU-OPTIMIZER
         </span>
         <span className="mono text-[11px]" style={{ color: "var(--faint)" }}>
-          v0.1.0
+          v{__APP_VERSION__}
         </span>
         <span className="mono ml-auto flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
           <span
@@ -90,17 +90,17 @@ export default function Layout() {
         <main className="min-w-0 flex-1 p-4">
           {mode === "static" && (
             <Notice tone="info">
-              Read-only snapshot of recorded runs (GitHub Pages, no backend). Clone{" "}
+              Read-only snapshot of recorded runs — no backend.{" "}
               <a className="link" href="https://github.com/sunkalpchandra/gpu-optimizer" target="_blank" rel="noreferrer">
-                the repository
+                Run locally
               </a>{" "}
-              and start <span className="mono">uvicorn server.api.main:app</span> to run live searches.
+              for live searches.
             </Notice>
           )}
           {status?.simulated_data_present && (
             <Notice tone="warn">
-              Simulated-engine data present. Values marked <span className="mono font-semibold" style={{ color: "var(--warn)" }}>sim</span>{" "}
-              are deterministic model estimates for development — not GPU measurements.
+              Values marked <span className="mono font-semibold" style={{ color: "var(--warn)" }}>sim</span>{" "}
+              are simulated-engine estimates, not GPU measurements.
             </Notice>
           )}
           <Outlet />

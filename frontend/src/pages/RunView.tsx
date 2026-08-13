@@ -42,26 +42,41 @@ export default function RunView() {
   const [error, setError] = useState<string | null>(null);
   const [logScale, setLogScale] = useState(false);
   const lastIter = useRef(0);
+  const busy = useRef(false);       // one refresh in flight at a time
+  const generation = useRef(0);     // invalidates stale responses on run change
 
   const refresh = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    const gen = generation.current;
     try {
       const r = await api.run(runId);
-      setRun(r);
       const fresh = await api.iterations(runId, lastIter.current);
+      if (gen !== generation.current) return; // run changed / unmounted
+      setRun(r);
       if (fresh.length) {
         lastIter.current = Math.max(...fresh.map((i) => i.iteration));
         setIters((prev) => [...prev, ...fresh]);
       }
+      setError(null); // a successful poll clears transient failures
     } catch (e) {
-      setError((e as Error).message);
+      if (gen === generation.current) setError((e as Error).message);
+    } finally {
+      busy.current = false;
     }
   }, [runId]);
 
   useEffect(() => {
+    generation.current += 1;
     lastIter.current = 0;
+    busy.current = false;
     setIters([]);
     setRun(null);
+    setError(null);
     void refresh();
+    return () => {
+      generation.current += 1;
+    };
   }, [refresh]);
   usePoll(refresh, 1500, run?.status === "running");
 
@@ -75,7 +90,7 @@ export default function RunView() {
     [iters],
   );
 
-  if (error) return <ErrorBox error={error} />;
+  if (error && !run) return <ErrorBox error={error} />;
   if (!run) return <Loading />;
 
   const speedup =
@@ -96,6 +111,7 @@ export default function RunView() {
           </>
         }
       />
+      {error && <ErrorBox error={error} />}
 
       <div
         className="mono flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[4px] border px-3 py-1.5 text-[11.5px]"
@@ -137,11 +153,13 @@ export default function RunView() {
         title="Convergence"
         meta={
           <button
+            type="button"
+            aria-pressed={logScale}
             onClick={() => setLogScale((s) => !s)}
             className="mono text-[11px]"
-            style={{ color: "var(--accent)" }}
+            style={{ color: "var(--accent)", cursor: "pointer" }}
           >
-            {logScale ? "log" : "linear"} y
+            y: {logScale ? "log" : "linear"}
           </button>
         }
       >
@@ -150,7 +168,15 @@ export default function RunView() {
             <ResponsiveContainer>
               <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="iteration" stroke="var(--faint)" fontSize={10.5} tickLine={false} />
+                <XAxis
+                  dataKey="iteration"
+                  type="number"
+                  domain={[1, "dataMax"]}
+                  allowDecimals={false}
+                  stroke="var(--faint)"
+                  fontSize={10.5}
+                  tickLine={false}
+                />
                 <YAxis
                   stroke="var(--faint)"
                   fontSize={10.5}
@@ -171,7 +197,7 @@ export default function RunView() {
                   formatter={(v) => fmtMs(v as number)}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Scatter dataKey="actual" name="candidate" fill="#6ea8fe" opacity={0.45} />
+                <Scatter dataKey="actual" name="candidate" fill="var(--accent)" opacity={0.45} />
                 <Line
                   dataKey="best"
                   name="best so far"
@@ -183,7 +209,7 @@ export default function RunView() {
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <Empty>waiting for iterations…</Empty>
+            <Empty>waiting for iterations</Empty>
           )}
         </div>
       </Panel>
@@ -192,11 +218,11 @@ export default function RunView() {
         {iters.length ? (
           <div className="max-h-[30rem] overflow-auto">
             <table className="tbl">
-              <thead className="sticky top-0" style={{ background: "var(--panel)" }}>
+              <thead className="thead-sticky sticky top-0" style={{ background: "var(--panel)" }}>
                 <tr>
                   <th className="num">#</th>
                   <th>candidate</th>
-                  <th>source</th>
+                  <th>provenance</th>
                   <th>status</th>
                   <th className="num">predicted</th>
                   <th className="num">actual</th>
@@ -213,12 +239,14 @@ export default function RunView() {
                         {it.candidate_id.slice(0, 10)}
                       </Link>
                     </td>
-                    <td><ProvTag value={it.note || "manual"} /></td>
+                    <td>{it.note ? <ProvTag value={it.note} /> : "—"}</td>
                     <td><StatusDot value={it.status} /></td>
                     <td className="num" style={{ color: "var(--muted)" }}>
-                      {it.predicted_ms != null
-                        ? `${fmtMs(it.predicted_ms)} ±${fmtMs(it.predicted_std ?? 0)}`
-                        : "—"}
+                      {it.predicted_ms == null
+                        ? "—"
+                        : it.predicted_std == null
+                          ? fmtMs(it.predicted_ms)
+                          : `${fmtMs(it.predicted_ms)} ±${fmtMs(it.predicted_std)}`}
                     </td>
                     <td className="num">
                       {fmtMs(it.actual_ms)}
@@ -234,7 +262,7 @@ export default function RunView() {
             </table>
           </div>
         ) : (
-          <Empty>no iterations recorded yet</Empty>
+          <Empty>no iterations recorded</Empty>
         )}
       </Panel>
     </div>

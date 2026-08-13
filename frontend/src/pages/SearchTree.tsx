@@ -1,4 +1,4 @@
-import { MouseEvent, useMemo, useRef, useState, WheelEvent } from "react";
+import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtMs, TreeNode } from "../api";
 import { useFetch, useTitle } from "../components/hooks";
@@ -78,13 +78,14 @@ function layout(nodes: TreeNode[]): { placed: Placed[]; width: number; height: n
   return { placed, width, height };
 }
 
-const LEGEND: Array<[string, string]> = [
-  ["rl", PROVENANCE_COLOR.rl],
-  ["evolutionary", PROVENANCE_COLOR.evolutionary],
-  ["bo", PROVENANCE_COLOR.bo],
-  ["random", PROVENANCE_COLOR.random],
-  ["baseline", PROVENANCE_COLOR.baseline],
-];
+function legendFor(nodes: TreeNode[]): Array<[string, string]> {
+  const seen: string[] = [];
+  for (const n of nodes) {
+    const key = n.provenance === "baseline-naive" ? "baseline" : n.provenance;
+    if (!seen.includes(key)) seen.push(key);
+  }
+  return seen.map((k) => [k, PROVENANCE_COLOR[k] ?? "var(--muted)"]);
+}
 
 export default function SearchTree() {
   const { runId = "" } = useParams();
@@ -92,47 +93,77 @@ export default function SearchTree() {
   const { data, error, loading } = useFetch(() => api.tree(runId), [runId]);
   const [selected, setSelected] = useState<Placed | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
-  const drag = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   const graph = useMemo(() => (data ? layout(data.nodes) : null), [data]);
 
-  if (loading) return <Loading />;
-  if (error) return <ErrorBox error={error} />;
-  if (!graph || !graph.placed.length) return <Empty>no candidates recorded for this run</Empty>;
+  // Non-passive wheel handler: zoom anchored to the cursor without scrolling
+  // the page (React's synthetic wheel listeners are passive).
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: globalThis.WheelEvent) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      setView((v) => {
+        const scale = Math.min(4, Math.max(0.3, v.scale * (e.deltaY < 0 ? 1.1 : 0.9)));
+        const k = scale / v.scale;
+        return { scale, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
+      });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, [graph]);
+
+  const head = (
+    <PageHead
+      crumbs={[
+        <Link key="r" className="link" to="/">runs</Link>,
+        <Link key="id" className="link mono" to={`/runs/${runId}`}>{runId}</Link>,
+        "search tree",
+      ]}
+    />
+  );
+  if (loading) return <div className="space-y-3">{head}<Loading /></div>;
+  if (error) return <div className="space-y-3">{head}<ErrorBox error={error} /></div>;
+  if (!graph || !graph.placed.length) {
+    return (
+      <div className="space-y-3">
+        {head}
+        <Panel title="Lineage"><Empty>no candidates recorded for this run</Empty></Panel>
+      </div>
+    );
+  }
 
   const byId = new Map(graph.placed.map((n) => [n.candidate_id, n]));
 
-  function onWheel(e: WheelEvent<SVGSVGElement>) {
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setView((v) => ({ ...v, scale: Math.min(4, Math.max(0.3, v.scale * factor)) }));
-  }
   function onMouseDown(e: MouseEvent<SVGSVGElement>) {
-    drag.current = { x: e.clientX, y: e.clientY };
+    drag.current = { x: e.clientX, y: e.clientY, moved: false };
   }
   function onMouseMove(e: MouseEvent<SVGSVGElement>) {
     if (!drag.current) return;
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
-    drag.current = { x: e.clientX, y: e.clientY };
+    drag.current = { x: e.clientX, y: e.clientY, moved: drag.current.moved || dx !== 0 || dy !== 0 };
     setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+  }
+  function onBackgroundClick() {
+    if (!drag.current?.moved) setSelected(null); // click (not drag) clears selection
   }
 
   return (
     <div className="space-y-3">
-      <PageHead
-        crumbs={[
-          <Link key="r" className="link" to="/">runs</Link>,
-          <Link key="id" className="link mono" to={`/runs/${runId}`}>{runId}</Link>,
-          "search tree",
-        ]}
-      />
+      {head}
 
       <div className="flex gap-3">
         <Panel
-          title={`Lineage (${graph.placed.length} candidates)`}
+          title={`Lineage (${graph.placed.length})`}
           meta={
             <span className="flex items-center gap-3 text-[10.5px]" style={{ color: "var(--muted)" }}>
-              {LEGEND.map(([k, c]) => (
+              {legendFor(data!.nodes).map(([k, c]) => (
                 <span key={k} className="flex items-center gap-1">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
                   {k}
@@ -147,12 +178,16 @@ export default function SearchTree() {
         >
           <div className="relative">
             <svg
+              ref={svgRef}
               className="h-[32rem] w-full cursor-grab active:cursor-grabbing"
-              onWheel={onWheel}
+              viewBox={`0 0 ${graph.width} ${graph.height}`}
+              preserveAspectRatio="xMidYMin meet"
               onMouseDown={onMouseDown}
               onMouseMove={onMouseMove}
-              onMouseUp={() => (drag.current = null)}
+              onMouseUp={() => { onBackgroundClick(); drag.current = null; }}
               onMouseLeave={() => (drag.current = null)}
+              role="application"
+              aria-label="candidate lineage graph"
             >
               <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`}>
                 {graph.placed.map((n) =>
@@ -172,9 +207,15 @@ export default function SearchTree() {
                   <g
                     key={n.candidate_id}
                     transform={`translate(${n.x},${n.y})`}
-                    className="cursor-pointer"
-                    onClick={() => setSelected(n)}
+                    className="cursor-pointer focus:outline-none"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`candidate ${n.candidate_id.slice(0, 10)}`}
+                    onClick={(e) => { e.stopPropagation(); setSelected(n); }}
+                    onKeyDown={(e) => e.key === "Enter" && setSelected(n)}
                   >
+                    <title>{`${n.candidate_id.slice(0, 12)} · ${n.provenance} · ${n.status}${
+                      n.latency_ms != null ? ` · ${n.latency_ms.toFixed(4)} ms` : ""}`}</title>
                     <circle
                       r={n.r}
                       fill={PROVENANCE_COLOR[n.provenance] ?? "var(--muted)"}

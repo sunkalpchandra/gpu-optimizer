@@ -1,4 +1,4 @@
-import { api, RankMetrics, Report } from "../api";
+import { api, fmtMs, fmtSpeedup, RankMetrics, Report } from "../api";
 import { useFetch, useTitle } from "../components/hooks";
 import { Empty, ErrorBox, Loading, Notice, PageHead, Panel } from "../components/ui";
 
@@ -9,6 +9,9 @@ function rhoColor(rho: number | null | undefined): string {
   return "var(--err)";
 }
 
+const pct = (v: number | string | null | undefined) =>
+  typeof v === "number" ? `${v.toFixed(1)}%` : (v ?? "—");
+
 function RankTable({ rows }: { rows: Record<string, RankMetrics> }) {
   const entries = Object.entries(rows);
   if (!entries.length) return <Empty>no data</Empty>;
@@ -18,7 +21,7 @@ function RankTable({ rows }: { rows: Record<string, RankMetrics> }) {
         <tr>
           <th>case</th>
           <th className="num">n</th>
-          <th className="num">spearman ρ</th>
+          <th className="num">spearman rho</th>
           <th className="num">top-1 regret</th>
         </tr>
       </thead>
@@ -30,7 +33,7 @@ function RankTable({ rows }: { rows: Record<string, RankMetrics> }) {
             <td className="num" style={{ color: rhoColor(m.spearman) }}>
               {m.spearman?.toFixed(3) ?? "—"}
             </td>
-            <td className="num">{m.top1_regret_pct != null ? `${m.top1_regret_pct}%` : "—"}</td>
+            <td className="num">{pct(m.top1_regret_pct)}</td>
           </tr>
         ))}
       </tbody>
@@ -41,18 +44,19 @@ function RankTable({ rows }: { rows: Record<string, RankMetrics> }) {
 function ReportView({ report }: { report: Report }) {
   return (
     <div className="space-y-3">
-      <PageHead
-        crumbs={["reports", <span key="n" className="mono">{report.name}</span>]}
-        right={
-          <span className="mono text-[11.5px]" style={{ color: "var(--muted)" }}>
-            {report.gpu} · seed {report.seed} · engine {report.engine_label}
-          </span>
-        }
-      />
+      <div
+        className="mono flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[4px] border px-3 py-1.5 text-[11.5px]"
+        style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+      >
+        <span style={{ color: "var(--text)" }}>{report.name}</span>
+        <span>{report.gpu}</span>
+        <span>seed {report.seed}</span>
+        <span>engine {report.engine_label}</span>
+      </div>
       {report.engine_label === "simulated" && (
         <Notice tone="warn">
-          Simulated results (no CUDA GPU) — these validate search behavior and transfer, not
-          hardware performance.
+          Simulated results — these validate search behavior and transfer, not hardware
+          performance.
         </Notice>
       )}
 
@@ -68,7 +72,7 @@ function ReportView({ report }: { report: Report }) {
         <RankTable rows={report.workload_transfer} />
       </Panel>
 
-      <Panel title="Hardware transfer (top-k protocol)">
+      <Panel title="Hardware transfer">
         <table className="tbl">
           <thead>
             <tr>
@@ -77,7 +81,7 @@ function ReportView({ report }: { report: Report }) {
               <th className="num">native best</th>
               <th className="num">penalty</th>
               <th className="num">k needed</th>
-              <th className="num">spearman ρ</th>
+              <th className="num">spearman rho</th>
             </tr>
           </thead>
           <tbody>
@@ -85,12 +89,10 @@ function ReportView({ report }: { report: Report }) {
               <tr key={k}>
                 <td className="mono text-[11.5px]">{k}</td>
                 <td className="num">
-                  {typeof m.transferred_ms === "number" ? `${m.transferred_ms} ms` : m.transferred_ms}
+                  {typeof m.transferred_ms === "number" ? fmtMs(m.transferred_ms) : m.transferred_ms}
                 </td>
-                <td className="num">{m.native_ms} ms</td>
-                <td className="num">
-                  {typeof m.penalty_pct === "number" ? `${m.penalty_pct}%` : m.penalty_pct}
-                </td>
+                <td className="num">{fmtMs(m.native_ms)}</td>
+                <td className="num">{pct(m.penalty_pct)}</td>
                 <td className="num">{m.top_k_needed ?? "—"}</td>
                 <td className="num" style={{ color: rhoColor(m.spearman) }}>
                   {m.spearman?.toFixed(3) ?? "—"}
@@ -101,7 +103,7 @@ function ReportView({ report }: { report: Report }) {
         </table>
       </Panel>
 
-      <Panel title="Search efficiency · equal budget">
+      <Panel title="Search efficiency">
         <table className="tbl">
           <thead>
             <tr>
@@ -116,8 +118,8 @@ function ReportView({ report }: { report: Report }) {
             {Object.entries(report.search_efficiency).map(([algo, m]) => (
               <tr key={algo}>
                 <td className="font-semibold">{algo}</td>
-                <td className="num">{m.best_ms} ms</td>
-                <td className="num">{m.speedup_vs_torch}×</td>
+                <td className="num">{fmtMs(m.best_ms)}</td>
+                <td className="num">{fmtSpeedup(m.speedup_vs_torch)}</td>
                 <td className="num">{m.evals_to_best ?? "—"}</td>
                 <td className="num">{(m.compile_rate * 100).toFixed(1)}%</td>
               </tr>
@@ -132,15 +134,21 @@ function ReportView({ report }: { report: Report }) {
 export default function Reports() {
   useTitle("Reports");
   const { data, error, loading } = useFetch(() => api.reports(), []);
-  if (loading) return <Loading />;
-  if (error) return <ErrorBox error={error} />;
-  if (!data?.length)
-    return <Empty>no generalization reports — run `python scripts/generalization.py`</Empty>;
+  const head = <PageHead crumbs={["reports"]} />;
+  if (loading) return <div className="space-y-3">{head}<Loading /></div>;
+  if (error) return <div className="space-y-3">{head}<ErrorBox error={error} /></div>;
   return (
-    <div className="space-y-8">
-      {data.map((r) => (
-        <ReportView key={r.name} report={r} />
-      ))}
+    <div className="space-y-3">
+      {head}
+      {data?.length ? (
+        data.map((r) => <ReportView key={r.name} report={r} />)
+      ) : (
+        <Panel title="Generalization">
+          <Empty>
+            no reports — run <span className="mono ml-1">python scripts/generalization.py</span>
+          </Empty>
+        </Panel>
+      )}
     </div>
   );
 }

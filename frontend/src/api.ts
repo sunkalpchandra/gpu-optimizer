@@ -181,12 +181,17 @@ export type ApiMode = "live" | "static";
 
 let modePromise: Promise<ApiMode> | null = null;
 
+// Live endpoints and the probe resolve against the same base, so subpath
+// deployments cannot end up with a passing probe and failing calls.
+const apiUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+const demoUrl = (name: string) => `${import.meta.env.BASE_URL}demo/${name}.json`;
+
 export function apiMode(): Promise<ApiMode> {
   modePromise ??= (async () => {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 2500);
-      const res = await fetch("api/status", { signal: ctrl.signal });
+      const res = await fetch(apiUrl("api/status"), { signal: ctrl.signal });
       clearTimeout(timer);
       if (res.ok) return "live";
     } catch {
@@ -197,8 +202,6 @@ export function apiMode(): Promise<ApiMode> {
   return modePromise;
 }
 
-const demoUrl = (name: string) => `${import.meta.env.BASE_URL}demo/${name}.json`;
-
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
@@ -207,35 +210,32 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 async function get<T>(livePath: string, demoName: string): Promise<T> {
   const mode = await apiMode();
-  return fetchJson<T>(mode === "live" ? livePath : demoUrl(demoName));
+  return fetchJson<T>(mode === "live" ? apiUrl(livePath) : demoUrl(demoName));
 }
 
 export const api = {
-  status: () => get<Status>("/api/status", "status"),
-  tasks: () => get<TaskInfo[]>("/api/tasks", "tasks"),
-  algorithms: () => get<string[]>("/api/algorithms", "algorithms"),
-  gpu: () => get<GpuInfo>("/api/gpu", "gpu"),
-  runs: () => get<Run[]>("/api/runs", "runs"),
-  run: (id: string) => get<Run>(`/api/runs/${id}`, `run-${id}`),
+  status: () => get<Status>("api/status", "status"),
+  tasks: () => get<TaskInfo[]>("api/tasks", "tasks"),
+  algorithms: () => get<string[]>("api/algorithms", "algorithms"),
+  gpu: () => get<GpuInfo>("api/gpu", "gpu"),
+  runs: () => get<Run[]>("api/runs", "runs"),
+  run: (id: string) => get<Run>(`api/runs/${id}`, `run-${id}`),
   iterations: async (id: string, after = 0): Promise<Iteration[]> => {
     if ((await apiMode()) === "live") {
-      return fetchJson(`/api/runs/${id}/iterations?after=${after}`);
+      return fetchJson(apiUrl(`api/runs/${id}/iterations?after=${after}`));
     }
     const all = await fetchJson<Iteration[]>(demoUrl(`run-${id}-iterations`));
     return all.filter((it) => it.iteration > after);
   },
-  tree: (id: string) => get<Tree>(`/api/runs/${id}/tree`, `run-${id}-tree`),
+  tree: (id: string) => get<Tree>(`api/runs/${id}/tree`, `run-${id}-tree`),
   source: (candidateId: string) =>
-    get<KernelSource>(`/api/candidates/${candidateId}/source`, `candidate-${candidateId}`),
-  reports: () => get<Report[]>("/api/reports", "reports"),
+    get<KernelSource>(`api/candidates/${candidateId}/source`, `candidate-${candidateId}`),
+  reports: () => get<Report[]>("api/reports", "reports"),
   optimize: async (req: OptimizeRequest): Promise<{ run_id: string }> => {
     if ((await apiMode()) === "static") {
-      throw new Error(
-        "This is the static demo snapshot — clone the repo and run " +
-          "`uvicorn server.api.main:app` to launch live searches.",
-      );
+      throw new Error("read-only snapshot: launching searches requires the local backend");
     }
-    const res = await fetch("/api/optimize", {
+    const res = await fetch(apiUrl("api/optimize"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),

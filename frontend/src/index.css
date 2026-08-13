@@ -79,6 +79,11 @@ body {
 .tbl tbody tr:hover {
   background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
+/* collapsed borders don't travel with sticky headers; redraw the hairline */
+.thead-sticky th {
+  border-bottom: none;
+  box-shadow: inset 0 -1px var(--border);
+}
 .tbl .num {
   text-align: right;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -146,6 +151,17 @@ body {
 }
 .btn:hover:not(:disabled) {
   border-color: var(--accent);
+}
+.btn {
+  cursor: pointer;
+}
+.btn:focus-visible,
+.input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.btn:active:not(:disabled) {
+  background: #1c2740;
 }
 .btn:disabled {
   opacity: 0.45;

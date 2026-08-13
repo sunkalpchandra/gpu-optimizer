@@ -159,7 +159,10 @@ export function Loading() {
 
 export function ErrorBox({ error }: { error: string }) {
   return (
-    <div className="panel p-3 text-[12.5px]" style={{ borderColor: "#5c2a2e", color: "var(--err)" }}>
+    <div
+      className="panel p-3 text-[12.5px]"
+      style={{ borderColor: "color-mix(in srgb, var(--err) 40%, transparent)", color: "var(--err)" }}
+    >
       request failed: {error}
     </div>
   );
