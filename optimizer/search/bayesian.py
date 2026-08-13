@@ -12,7 +12,9 @@ model is *uncertain* about rather than greedily trusting the network.
 
 from __future__ import annotations
 
+import logging
 import math
+from pathlib import Path
 
 from benchmarks.harness import BenchmarkResult
 from compiler.transformations.space import Candidate, Config
@@ -20,6 +22,8 @@ from optimizer.performance_model.features import result_to_row
 from optimizer.performance_model.model import PerformanceModel
 from optimizer.search.base import SearchContext, Searcher
 from optimizer.search.factory import register_searcher
+
+logger = logging.getLogger(__name__)
 
 
 class BayesianSearcher(Searcher):
@@ -36,11 +40,18 @@ class BayesianSearcher(Searcher):
         acquisition: str = "ucb",
         retrain_every: int = 16,
         fit_epochs: int = 12,
+        surrogate_checkpoint: str | None = None,
     ) -> None:
         super().__init__(ctx)
         if acquisition not in ("ucb", "thompson"):
             raise ValueError(f"unknown acquisition {acquisition!r}")
+        self.surrogate_checkpoint = surrogate_checkpoint
+        if model is None and surrogate_checkpoint and Path(surrogate_checkpoint).exists():
+            model = PerformanceModel.load(surrogate_checkpoint)
+            logger.info("bayesian: warm-started surrogate from %s (%d rows)",
+                        surrogate_checkpoint, len(model.rows))
         self.model = model or PerformanceModel(seed=ctx.seed)
+        self._pretrained = self.model.trained
         self.warm_start = warm_start
         self.pool_size = pool_size
         self.beta = beta
@@ -55,7 +66,8 @@ class BayesianSearcher(Searcher):
 
     # -------------------------------------------------------------- propose
     def propose(self, n: int) -> list[Candidate]:
-        if self._observed < self.warm_start or not self.model.trained:
+        cold = self._observed < self.warm_start and not self._pretrained
+        if cold or not self.model.trained:
             return self._random_batch(n)
 
         pool = self._virtual_pool()
@@ -97,6 +109,12 @@ class BayesianSearcher(Searcher):
             self.model.fit(epochs=self.fit_epochs)
             self._since_fit = 0
 
+    def finalize(self) -> None:
+        if self.surrogate_checkpoint:
+            self.model.save(self.surrogate_checkpoint)
+            logger.info("bayesian: saved surrogate to %s (%d rows)",
+                        self.surrogate_checkpoint, len(self.model.rows))
+
     # -------------------------------------------------------------- helpers
     def _random_batch(self, n: int) -> list[Candidate]:
         out = []
@@ -127,8 +145,9 @@ class BayesianSearcher(Searcher):
 
 @register_searcher("bayesian")
 def _build(ctx: SearchContext, warm_start: int = 16, pool_size: int = 512,
-           beta: float = 1.0, acquisition: str = "ucb",
-           retrain_every: int = 16, **_ignored) -> BayesianSearcher:
+           beta: float = 1.0, acquisition: str = "ucb", retrain_every: int = 16,
+           surrogate_checkpoint: str | None = None, **_ignored) -> BayesianSearcher:
     return BayesianSearcher(ctx, warm_start=warm_start, pool_size=pool_size,
                             beta=beta, acquisition=acquisition,
-                            retrain_every=retrain_every)
+                            retrain_every=retrain_every,
+                            surrogate_checkpoint=surrogate_checkpoint)

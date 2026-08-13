@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import math
+from pathlib import Path
 
 from benchmarks.harness import BenchmarkResult
 from compiler.transformations.space import Candidate, Config
@@ -50,12 +51,21 @@ class HybridSearcher(Searcher):
         retrain_every: int = 16,
         fit_epochs: int = 10,
         max_episode_steps: int = 10,
+        surrogate_checkpoint: str | None = None,
+        policy_checkpoint: str | None = None,
     ) -> None:
         super().__init__(ctx)
+        self.surrogate_checkpoint = surrogate_checkpoint
+        if model is None and surrogate_checkpoint and Path(surrogate_checkpoint).exists():
+            model = PerformanceModel.load(surrogate_checkpoint)
+            logger.info("hybrid: warm-started surrogate from %s (%d rows)",
+                        surrogate_checkpoint, len(model.rows))
         self.model = model or PerformanceModel(seed=ctx.seed)
+        self._pretrained = self.model.trained
         rl_cfg = {k: v for k, v in (rl_params or {}).items() if k != "algorithm"}
         self.rl = RLSearcher(ctx, ppo=PPOConfig(**rl_cfg) if rl_cfg else None,
-                             max_episode_steps=max_episode_steps)
+                             max_episode_steps=max_episode_steps,
+                             policy_checkpoint=policy_checkpoint)
         self.ga = EvolutionarySearcher(ctx, ga_params or GAParams(population_size=24))
         self.rl_frac = rl_frac
         self.pool_multiplier = pool_multiplier
@@ -86,7 +96,7 @@ class HybridSearcher(Searcher):
         pool = self._gather_pool(n_rest * self.pool_multiplier)
         if not pool:
             return out
-        if self.model.trained and self._observed >= self.warm_start:
+        if self.model.trained and (self._observed >= self.warm_start or self._pretrained):
             chosen = self._acquire(pool, n_rest)
         else:
             chosen = pool[:n_rest]
@@ -140,6 +150,13 @@ class HybridSearcher(Searcher):
             self.model.fit(epochs=self.fit_epochs)
             self._since_fit = 0
 
+    def finalize(self) -> None:
+        self.rl.finalize()
+        if self.surrogate_checkpoint:
+            self.model.save(self.surrogate_checkpoint)
+            logger.info("hybrid: saved surrogate to %s (%d rows)",
+                        self.surrogate_checkpoint, len(self.model.rows))
+
     # ------------------------------------------------------------- reporting
     @property
     def stats(self) -> dict:
@@ -161,9 +178,13 @@ def _build(ctx: SearchContext, rl_params: dict | None = None,
            population_size: int = 24, rl_frac: float = 0.3, beta: float = 1.0,
            warm_start: int = 16, retrain_every: int = 16,
            pool_multiplier: int = 6, max_episode_steps: int = 10,
+           surrogate_checkpoint: str | None = None,
+           policy_checkpoint: str | None = None,
            **_ignored) -> HybridSearcher:
     return HybridSearcher(
         ctx, rl_params=rl_params, ga_params=GAParams(population_size=population_size),
         rl_frac=rl_frac, beta=beta, warm_start=warm_start,
         retrain_every=retrain_every, pool_multiplier=pool_multiplier,
-        max_episode_steps=max_episode_steps)
+        max_episode_steps=max_episode_steps,
+        surrogate_checkpoint=surrogate_checkpoint,
+        policy_checkpoint=policy_checkpoint)

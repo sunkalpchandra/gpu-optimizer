@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -57,11 +58,17 @@ class RLSearcher(Searcher):
 
     def __init__(self, ctx: SearchContext, ppo: PPOConfig | None = None,
                  max_episode_steps: int = 12, trainer: PPOTrainer | None = None,
-                 deterministic: bool = False) -> None:
+                 deterministic: bool = False,
+                 policy_checkpoint: str | None = None) -> None:
         super().__init__(ctx)
         self.max_episode_steps = max_episode_steps
         self.deterministic = deterministic
+        self.policy_checkpoint = policy_checkpoint
         self.trainer = trainer or PPOTrainer(PolicyNet(), ppo or PPOConfig())
+        if trainer is None and policy_checkpoint and Path(policy_checkpoint).exists():
+            self.trainer.load(policy_checkpoint)
+            logger.info("rl: warm-started policy from %s (%d prior updates)",
+                        policy_checkpoint, self.trainer.updates_done)
         self.policy = self.trainer.policy
         # static observation parts
         graph = graph_for(ctx.task.name, ctx.shape, "float32")
@@ -232,6 +239,12 @@ class RLSearcher(Searcher):
         if ep in self._episodes:
             self._episodes.remove(ep)
 
+    def finalize(self) -> None:
+        if self.policy_checkpoint and not self.deterministic:
+            self.trainer.save(self.policy_checkpoint)
+            logger.info("rl: saved policy to %s (%d updates)",
+                        self.policy_checkpoint, self.trainer.updates_done)
+
     @property
     def best_config(self) -> Config | None:
         return dict(self._best[0]) if self._best else None
@@ -239,7 +252,8 @@ class RLSearcher(Searcher):
 
 @register_searcher("rl")
 def _build(ctx: SearchContext, rl_params: dict | None = None,
-           max_episode_steps: int = 12, **_ignored) -> RLSearcher:
+           max_episode_steps: int = 12, policy_checkpoint: str | None = None,
+           **_ignored) -> RLSearcher:
     rl_params = dict(rl_params or {})
     rl_params.pop("algorithm", None)  # "ppo" is the only implementation
     known = {f for f in PPOConfig.__dataclass_fields__}
@@ -247,4 +261,5 @@ def _build(ctx: SearchContext, rl_params: dict | None = None,
     if unknown:
         raise ValueError(f"unknown rl params: {sorted(unknown)}")
     return RLSearcher(ctx, ppo=PPOConfig(**rl_params),
-                      max_episode_steps=max_episode_steps)
+                      max_episode_steps=max_episode_steps,
+                      policy_checkpoint=policy_checkpoint)

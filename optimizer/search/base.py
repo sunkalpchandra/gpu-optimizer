@@ -56,3 +56,6 @@ class Searcher(ABC):
     def observe(  # noqa: B027 - optional hook, stateless searchers skip it
         self, results: list[tuple[Candidate, BenchmarkResult, float]]) -> None:
         """Feed back (candidate, result, reward) tuples.  Optional."""
+
+    def finalize(self) -> None:  # noqa: B027 - optional hook
+        """Called once when the search loop ends (checkpointing, cleanup)."""

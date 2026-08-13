@@ -136,8 +136,8 @@ class PPOTrainer:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(),
                                                cfg.max_grad_norm)
                 self.opt.step()
-                pol_losses.append(float(pg_loss))
-                val_losses.append(float(v_loss))
+                pol_losses.append(float(pg_loss.detach()))
+                val_losses.append(float(v_loss.detach()))
                 if approx_kl > cfg.target_kl:
                     stop = True
                     break

@@ -156,11 +156,17 @@ class PerformanceModel:
 
     # --------------------------------------------------------------- io
     def save(self, path: str | Path) -> None:
+        """Persist weights *and* the training corpus, so a warm-started model
+        keeps refitting against everything it has ever measured instead of
+        forgetting it on the next run's first handful of rows."""
+        from dataclasses import asdict
+
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save({
             "n_members": self.n_members, "hidden": self.hidden,
             "states": [m.state_dict() for m in self.members],
+            "rows": [asdict(r) for r in self.rows],
         }, path)
 
     @classmethod
@@ -169,5 +175,9 @@ class PerformanceModel:
         model = cls(n_members=ckpt["n_members"], hidden=ckpt["hidden"], device=device)
         for m, state in zip(model.members, ckpt["states"]):
             m.load_state_dict(state)
+        model.rows = [
+            TrainingRow(**{**d, "shape": tuple(d["shape"]), "config": dict(d["config"])})
+            for d in ckpt.get("rows", [])
+        ]
         model.trained = True
         return model

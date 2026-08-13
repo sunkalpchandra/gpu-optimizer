@@ -173,6 +173,7 @@ class SearchLoop:
             if observations:
                 self.searcher.observe(observations)
 
+        self.searcher.finalize()
         rate = compiled / evaluated if evaluated else 0.0
         outcome = SearchOutcome(
             run_id=self.run_id, task=task.name, shape=ctx.shape,

@@ -52,6 +52,13 @@ def main() -> int:
     ap.add_argument("--warmup", type=int, default=20)
     ap.add_argument("--iterations", type=int, default=100)
     ap.add_argument("--no-db", action="store_true", help="skip persistence")
+    ap.add_argument("--warm", action="store_true",
+                    help="load/save per-task surrogate + policy checkpoints under "
+                         "checkpoints/, so successive runs start smarter")
+    ap.add_argument("--surrogate", default=None, metavar="PATH",
+                    help="surrogate checkpoint to warm-start from and save back to")
+    ap.add_argument("--policy", default=None, metavar="PATH",
+                    help="PPO policy checkpoint to warm-start from and save back to")
     ap.add_argument("--save-kernel", default=None, metavar="PATH",
                     help="write the best kernel's annotated source here")
     ap.add_argument("--show-source", action="store_true",
@@ -80,10 +87,23 @@ def main() -> int:
     for line in env.summary().splitlines():
         console.print(f"  {line}")
 
+    search_params: dict = {}
+    surrogate = args.surrogate or (f"checkpoints/{args.task}-surrogate.pt"
+                                   if args.warm else None)
+    policy = args.policy or (f"checkpoints/{args.task}-policy.pt" if args.warm else None)
+    if surrogate and args.algorithm in ("bayesian", "hybrid"):
+        search_params["surrogate_checkpoint"] = surrogate
+    if policy and args.algorithm in ("rl", "hybrid"):
+        search_params["policy_checkpoint"] = policy
+    if (surrogate or policy) and not search_params:
+        console.print(f"[yellow]note: --warm/--surrogate/--policy have no effect on "
+                      f"algorithm {args.algorithm!r}[/yellow]")
+
     cfg = ExperimentConfig(
         task=args.task, shapes=[shape], algorithm=args.algorithm, seed=args.seed,
         engine=args.engine, max_evaluations=args.budget, batch_size=args.batch_size,
         benchmark={"warmup": args.warmup, "iterations": args.iterations},
+        search=search_params,
         db_path="" if args.no_db else None,
     )
 
