@@ -1,5 +1,6 @@
 """Stage 2 integration: kernel → (simulated) benchmark → score pipeline."""
 
+import itertools
 import math
 
 import pytest
@@ -76,7 +77,7 @@ def test_random_search_loop_end_to_end(engine, tmp_path):
 
     # best-so-far is monotone non-increasing
     curve = [e["best_so_far_ms"] for e in events if e["type"] == "iteration"]
-    assert all(b <= a + 1e-9 for a, b in zip(curve, curve[1:]))
+    assert all(b <= a + 1e-9 for a, b in itertools.pairwise(curve))
 
 
 def test_grid_search_exhausts(engine):

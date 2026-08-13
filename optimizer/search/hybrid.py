@@ -73,7 +73,7 @@ class HybridSearcher(Searcher):
     def propose(self, n: int) -> list[Candidate]:
         out: list[Candidate] = []
 
-        n_rl = max(1, int(round(n * self.rl_frac))) if n > 1 else 1
+        n_rl = max(1, round(n * self.rl_frac)) if n > 1 else 1
         for cand in self.rl.propose(n_rl):
             if cand.candidate_id not in self._seen:
                 self._seen.add(cand.candidate_id)

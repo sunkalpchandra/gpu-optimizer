@@ -82,7 +82,7 @@ class FeatureBatch:
     log_mem: torch.Tensor         # (B,) target, NaN where unavailable
     compiled: torch.Tensor        # (B,) 0/1
 
-    def to(self, device: str) -> "FeatureBatch":
+    def to(self, device: str) -> FeatureBatch:
         return FeatureBatch(*(t.to(device) for t in (
             self.node_feats, self.adj, self.hw_feats, self.cand_feats,
             self.log_ms, self.log_mem, self.compiled)))

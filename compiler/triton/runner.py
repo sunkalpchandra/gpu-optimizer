@@ -9,8 +9,8 @@ failures surface as :class:`KernelBuildError` with the compiler log attached.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Callable, Sequence
 
 import torch
 

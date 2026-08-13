@@ -10,11 +10,11 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from benchmarks.db import BenchmarkDB
-from benchmarks.harness import STATUS_OK, BenchmarkEngine, BenchmarkResult
+from benchmarks.harness import BenchmarkEngine, BenchmarkResult
 from compiler.transformations.space import Candidate
 from optimizer.rewards.reward import RewardConfig, compute_reward
 from optimizer.search.base import SearchContext, Searcher

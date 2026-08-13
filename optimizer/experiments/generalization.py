@@ -184,7 +184,7 @@ def study_hardware_transfer(*, gpu_a: str = "A100-SXM4-40GB",
     task = get_task(task_name)
     shape = tuple(shape)
 
-    def search(engine) -> "SearchLoop":
+    def search(engine) -> SearchLoop:
         ctx = SearchContext(task=task, shape=shape, hardware=engine.hardware,
                             seed=seed)
         s = make_searcher("evolutionary", ctx, population_size=20)

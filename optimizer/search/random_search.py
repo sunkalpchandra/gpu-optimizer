@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from compiler.transformations.space import Candidate
 from optimizer.search.base import SearchContext, Searcher
+from optimizer.search.factory import register_searcher
 
 
 class RandomSearcher(Searcher):
@@ -23,9 +24,7 @@ class RandomSearcher(Searcher):
         return out
 
 
-from optimizer.search.factory import register_searcher
-
-
 @register_searcher("random")
-def _build(ctx: SearchContext, max_proposals: int | None = None, **_ignored) -> RandomSearcher:
+def _build(ctx: SearchContext, max_proposals: int | None = None,
+           **_ignored) -> RandomSearcher:
     return RandomSearcher(ctx, max_proposals=max_proposals)

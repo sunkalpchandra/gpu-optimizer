@@ -22,7 +22,7 @@ from compiler.transformations.space import (
 
 # Params the RL policy may edit.  dtype/strategy are ordered categorical
 # choices in each task's ParamSpace, so inc/dec traverses them uniformly.
-TUNABLE_PARAMS: tuple[str, ...] = GLOBAL_NUMERIC_PARAMS + ("dtype", "strategy")
+TUNABLE_PARAMS: tuple[str, ...] = (*GLOBAL_NUMERIC_PARAMS, "dtype", "strategy")
 
 
 @dataclass(frozen=True)
@@ -41,9 +41,10 @@ class Action:
         return f"{self.param}{arrow}"
 
 
-ACTION_CATALOG: tuple[Action, ...] = tuple(
-    Action(p, d) for p in TUNABLE_PARAMS for d in (+1, -1)
-) + (Action("STOP", 0),)
+ACTION_CATALOG: tuple[Action, ...] = (
+    *(Action(p, d) for p in TUNABLE_PARAMS for d in (+1, -1)),
+    Action("STOP", 0),
+)
 
 NUM_ACTIONS = len(ACTION_CATALOG)
 STOP_ACTION_INDEX = NUM_ACTIONS - 1

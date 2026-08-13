@@ -68,7 +68,7 @@ def main() -> int:
     from optimizer.experiment import ExperimentConfig, run_experiment
 
     env = detect_environment()
-    task = get_task(args.task)
+    get_task(args.task)  # validate the task name before printing the header
     shape = (tuple(int(x) for x in args.shape.split(","))
              if args.shape else default_shape(args.task, args.size, args.rows))
 

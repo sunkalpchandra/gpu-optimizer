@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from optimizer.experiments.generalization import run_all  # noqa: E402
+from optimizer.experiments.generalization import run_all
 
 
 def main() -> None:

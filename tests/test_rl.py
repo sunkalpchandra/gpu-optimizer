@@ -12,7 +12,6 @@ from compiler.transformations.actions import NUM_ACTIONS, STOP_ACTION_INDEX
 from hardware.gpu_info import simulated_hardware
 from optimizer.policy.policy_net import PolicyNet, obs_to_tensors
 from optimizer.rl.ppo import PPOConfig, PPOTrainer, RolloutBuffer, Transition
-from optimizer.rl.searcher import RLSearcher
 from optimizer.search.base import SearchContext
 from optimizer.search.factory import make_searcher
 from optimizer.search.loop import SearchLoop

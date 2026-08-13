@@ -53,5 +53,6 @@ class Searcher(ABC):
         """Return up to ``n`` candidates to benchmark next.  An empty list
         signals the searcher has exhausted its space."""
 
-    def observe(self, results: list[tuple[Candidate, BenchmarkResult, float]]) -> None:
+    def observe(  # noqa: B027 - optional hook, stateless searchers skip it
+        self, results: list[tuple[Candidate, BenchmarkResult, float]]) -> None:
         """Feed back (candidate, result, reward) tuples.  Optional."""

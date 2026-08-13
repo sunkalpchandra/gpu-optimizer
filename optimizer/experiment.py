@@ -13,7 +13,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import torch
@@ -58,7 +58,7 @@ class ExperimentConfig:
     name: str = ""
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "ExperimentConfig":
+    def from_yaml(cls, path: str | Path) -> ExperimentConfig:
         raw = yaml.safe_load(Path(path).read_text()) or {}
         known = {f for f in cls.__dataclass_fields__}
         unknown = set(raw) - known

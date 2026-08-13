@@ -26,7 +26,7 @@ from benchmarks import TASKS, get_task
 from benchmarks.db import BenchmarkDB, default_db_path
 from compiler.triton.runner import render_source
 from hardware.gpu_info import detect_environment
-from optimizer.experiment import ExperimentConfig, build_engine, run_experiment
+from optimizer.experiment import ExperimentConfig, build_engine
 from optimizer.search.factory import available_searchers
 
 app = FastAPI(title="gpu-optimizer", version="0.1.0")
@@ -101,9 +101,9 @@ def algorithms() -> list[str]:
 
 @app.get("/api/gpu")
 def gpu() -> dict:
-    from hardware.gpu_info import KNOWN_GPUS, detect_hardware, simulated_hardware
-
     import torch
+
+    from hardware.gpu_info import KNOWN_GPUS, detect_hardware, simulated_hardware
 
     if torch.cuda.is_available():
         hw = detect_hardware()

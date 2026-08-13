@@ -164,7 +164,7 @@ class PerformanceModel:
         }, path)
 
     @classmethod
-    def load(cls, path: str | Path, device: str = "cpu") -> "PerformanceModel":
+    def load(cls, path: str | Path, device: str = "cpu") -> PerformanceModel:
         ckpt = torch.load(path, map_location=device, weights_only=True)
         model = cls(n_members=ckpt["n_members"], hidden=ckpt["hidden"], device=device)
         for m, state in zip(model.members, ckpt["states"]):

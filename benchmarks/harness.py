@@ -15,11 +15,10 @@ the UI; simulated numbers are never presented as hardware measurements.
 from __future__ import annotations
 
 import logging
-import statistics
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Sequence
 
 import numpy as np
 import torch
@@ -49,7 +48,7 @@ class LatencyStats:
     iterations: int
 
     @classmethod
-    def from_samples(cls, samples_ms: Sequence[float]) -> "LatencyStats":
+    def from_samples(cls, samples_ms: Sequence[float]) -> LatencyStats:
         arr = np.asarray(samples_ms, dtype=np.float64)
         return cls(
             mean_ms=float(arr.mean()),

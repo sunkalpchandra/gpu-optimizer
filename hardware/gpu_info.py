@@ -158,7 +158,7 @@ def detect_environment() -> EnvironmentReport:
         cc = torch.cuda.get_device_capability(0)
 
     try:
-        import triton  # noqa: F401
+        import triton
 
         triton_ok, triton_ver = True, triton.__version__
     except Exception:  # pragma: no cover - depends on platform

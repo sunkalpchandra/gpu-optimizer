@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from compiler.transformations.space import Candidate
 from optimizer.search.base import SearchContext, Searcher
+from optimizer.search.factory import register_searcher
 
 
 class GridSearcher(Searcher):
@@ -25,9 +26,6 @@ class GridSearcher(Searcher):
     def propose(self, n: int) -> list[Candidate]:
         batch, self._queue = self._queue[:n], self._queue[n:]
         return [self.ctx.candidate(cfg, "grid") for cfg in batch]
-
-
-from optimizer.search.factory import register_searcher
 
 
 @register_searcher("grid")

@@ -33,3 +33,16 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "E741",   # ambiguous single-letter names: m/l are idiomatic in kernel math
+    "RUF001", # unicode multiplication signs are intentional in user-facing strings
+    "RUF002", # same, in docstrings
+    "RUF003", # same, in comments (e.g. the reward formula's real minus sign)
+    "B905",   # zip strict= everywhere adds noise; lengths are structurally equal here
+]
+
+[tool.ruff.lint.per-file-ignores]
+"compiler/triton/kernels.py" = ["F821"]  # tl.constexpr names resolve at Triton JIT time

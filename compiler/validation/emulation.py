@@ -108,7 +108,7 @@ def _emulate_softmax(shape, config, inputs) -> torch.Tensor:
 
 def _emulate_layernorm(shape, config, inputs) -> torch.Tensor:
     x, w, b = inputs
-    m, n = shape
+    _m, n = shape
     bn = int(config["BLOCK_N"])
     xf, wf, bf = x.float(), w.float(), b.float()
     if bn >= n:

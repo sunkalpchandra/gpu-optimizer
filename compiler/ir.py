@@ -12,8 +12,8 @@ be a full compiler IR.
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Iterator, Sequence
 
 import numpy as np
 
@@ -120,7 +120,7 @@ class ProgramGraph:
         op: str,
         shape: Sequence[int],
         *,
-        inputs: Sequence["OpNode | int"] = (),
+        inputs: Sequence[OpNode | int] = (),
         dtype: str = "float32",
         reduction_axes: Sequence[int] = (),
         **attrs,

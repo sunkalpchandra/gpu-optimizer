@@ -9,7 +9,7 @@ reference is plain PyTorch, the baseline is
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 import torch.nn.functional as F

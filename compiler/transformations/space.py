@@ -15,8 +15,8 @@ import hashlib
 import itertools
 import json
 import random
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Mapping, Sequence
 
 import numpy as np
 
@@ -197,7 +197,7 @@ class Candidate:
     def encode(self) -> np.ndarray:
         return encode_config(self.config)
 
-    def mutated(self, config: Config, provenance: str) -> "Candidate":
+    def mutated(self, config: Config, provenance: str) -> Candidate:
         return Candidate(task=self.task, shape=self.shape, config=config,
                          parent_id=self.candidate_id, provenance=provenance)
 
